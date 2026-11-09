@@ -34,11 +34,14 @@ if [[ -e "$knot_target" || -L "$knot_target" ]]; then
         exit 1
     fi
 else
-    mv -T -n -- "$knot_temporary" "$knot_target"
-    if [[ -e "$knot_temporary" ]]; then
+    # Portable no-clobber install: `ln` fails if the target appeared concurrently,
+    # avoiding GNU-only `mv -T -n` (BSD/macOS `mv` lacks both flags). The link then
+    # replaces the temporary with the final name without descending into a directory.
+    if ! ln -- "$knot_temporary" "$knot_target" 2>/dev/null; then
         echo "Installation destination changed; inspect $knot_target before retrying." >&2
         exit 1
     fi
+    rm -f -- "$knot_temporary"
 fi
 
 echo "Installed: $knot_target"
