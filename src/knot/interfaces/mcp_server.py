@@ -103,7 +103,7 @@ def create_server(
     ceiling = max_chars
     server = MCPServer(
         'KNOT',
-        version='0.1.1',
+        version='0.2.0',
         log_level='WARNING',
         subscriptions=False,
         instructions=(

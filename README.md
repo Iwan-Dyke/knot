@@ -10,7 +10,7 @@ The core workflows run locally without an LLM or hosted service.
 
 ## Project status
 
-KNOT v0.1.1 is an early MIT-licensed release. Keep your
+KNOT v0.2.0 is an early MIT-licensed release. Keep your
 dataset outside the application checkout and select it using the commands below.
 The [clean code export](docs/release.md#prepare-a-clean-code-checkout) command can
 prepare application files for a new repository without datasets or Git history.
@@ -105,6 +105,20 @@ Use `--data-root /path/to/dataset`, `--output /path/to/library.html` or
 viewer remains available through `knot view --legacy`. Use `--no-open` to export
 without launching a browser; `knot browse` also remains an export-only entry point.
 See the [viewer guide](docs/viewer.md).
+
+To create and edit ordinary notes directly in Library, start the optional local app:
+
+```sh
+./knot serve
+```
+
+Use **New note** or select a current note and choose **Edit note**. Preview your
+Markdown/Org writing, then save; the Library refreshes to the saved note. Earlier
+revisions are preserved, and conflicting edits keep your draft for comparison.
+The app serves only on localhost for the selected dataset. Keep its session URL
+private and stop it with Ctrl+C. Use `--no-open` to print the URL without launching
+a browser, or `--data-root /path/to/dataset` to select a dataset explicitly.
+See [Library editing](docs/viewer.md#write-notes-in-the-local-library) for its limits.
 
 Choose **Idle**, then **Start**, to let KNOT travel through existing connections
 and reveal excerpts from your notes. It observes each node, presents its knowledge,

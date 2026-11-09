@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knot-knowledge"
-version = "0.1.1"
+version = "0.2.0"
 description = "Local, traceable RDF knowledge from personal documents"
 license = "MIT"
 license-files = ["LICENSE", "LICENSE_SCOPE.txt", "THIRD_PARTY_NOTICES.txt"]

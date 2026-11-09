@@ -13,7 +13,7 @@ operate them. The [release checklist](../docs/release.md) tracks pending deliver
 | Claims, reviews and identity | [0003](0003-assertions-and-provenance.md), [0010](0010-persistent-assertion-review.md), [0011](0011-resolve-confirmed-identities-in-query-view.md), [0029](0029-semantic-integrity-and-explicit-identity-resolution.md) |
 | Organisation and frameworks | [0012](0012-use-career-framework-for-competencies.md), [0013](0013-preserve-framework-definitions-as-assertions.md), [0016](0016-basic-ontology-and-overlapping-themes.md), [0017](0017-review-theme-membership-separately.md) |
 | Retrieval and discovery | [0019](0019-bounded-knowledge-retrieval-for-ai-context.md), [0020](0020-question-aware-hybrid-retrieval.md), [0023](0023-broad-discovery-and-selected-subject-retrieval.md), [0039](0039-share-retrieval-provenance-without-dropping-evidence.md) |
-| Authoring and AI access | [0021](0021-scoped-local-mcp-server.md), [0025](0025-owner-local-note-cli.md), [0032](0032-guided-zettelkasten-authoring.md), [0033](0033-owner-mcp-authoring-and-runtime-diagnostics.md) |
+| Authoring and AI access | [0021](0021-scoped-local-mcp-server.md), [0025](0025-owner-local-note-cli.md), [0032](0032-guided-zettelkasten-authoring.md), [0033](0033-owner-mcp-authoring-and-runtime-diagnostics.md), [0050](0050-owner-local-library-authoring.md) |
 | Curation and naming | [0027](0027-source-preserving-knowledge-curation.md), [0028](0028-meaningful-entity-names-and-value-presentation.md), [0030](0030-continuous-knowledge-curation.md), [0046](0046-guided-source-backed-curation.md) |
 | Viewer and navigation | [0047](0047-unified-knowledge-library-and-graph-exploration.md), [0026](0026-live-offline-graph-filters.md), [0035](0035-notes-in-the-unified-graph.md), [0044](0044-extensible-visual-and-knowledge-themes.md), [0045](0045-persistent-visual-themes-and-css-palettes.md) |
 | Implemented module boundaries | [0036](0036-modular-retrieval-and-shared-boundaries.md), [0037](0037-feature-packages-for-the-whole-application.md), [0049](0049-explicit-workflow-and-presentation-boundaries.md) |
@@ -105,9 +105,10 @@ not current command references; use the linked guides for today's behaviour.
 | [0044](0044-extensible-visual-and-knowledge-themes.md) | Extend visual palettes and knowledge themes independently | Accepted | Implemented |
 | [0045](0045-persistent-visual-themes-and-css-palettes.md) | Save visual preferences and discover CSS palettes | Accepted | Implemented |
 | [0046](0046-guided-source-backed-curation.md) | Guide manual curation through source selection and existing authoring | Accepted | Implemented |
-| [0047](0047-unified-knowledge-library-and-graph-exploration.md) | Explore one knowledge system through a library and focused graph | Accepted | Implemented browsing release; authoring deferred |
+| [0047](0047-unified-knowledge-library-and-graph-exploration.md) | Explore one knowledge system through a library and focused graph | Accepted | Implemented; optional ordinary-note authoring added by 0050 |
 | [0048](0048-idle-mode-autonomous-knowledge-exploration.md) | Cinematic exploration of existing knowledge in Idle | Accepted | Implemented; extended performance and accessibility validation pending |
 | [0049](0049-explicit-workflow-and-presentation-boundaries.md) | Separate terminal workflows, navigation, styles and ordered audit/retrieval stages | Accepted | Implemented |
+| [0050](0050-owner-local-library-authoring.md) | Write ordinary notes from an optional local Library | Accepted | Implemented; curation and review editing remain separate |
 
 ## Add or revise a decision
 

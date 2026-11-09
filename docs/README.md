@@ -11,7 +11,7 @@ unimplemented release work is listed separately in [release preparation](release
 | [Notes](notes.md) | Capture, revisions, guided organisation and agent handoffs |
 | [Curation](curation.md) | Guided manual curation, separate derived notes, source pins, assertion candidates and quality checks |
 | [Retrieval](retrieval.md) | Lookup, graph/text/hybrid retrieval, discovery, budgets and omissions |
-| [Viewer](viewer.md) | One-page Graph/Library, focused/live layouts, synthetic demo, visual themes and the supported legacy viewer |
+| [Viewer](viewer.md) | Graph/Library/Idle, optional local note editing, synthetic demo, visual themes and the supported legacy viewer |
 | [Reviews](reviews.md) | Assertion acceptance/correction, history and identity review |
 | [Organisation](organisation.md) | Add/import knowledge themes, type suggestions and separate theme review |
 | [Datasets](datasets.md) | Folder selection, authoritative files, backups, import and Git limitations |
@@ -42,6 +42,7 @@ launcher or package. The command families are intentionally distinct:
 | Write a curated note interactively | `knot curate` |
 | Validate/publish an assertion candidate JSON file | `just curate check FILE`, `just curate publish FILE` |
 | Open Graph and Library together | `knot view` or `just visualise`; add `example` for synthetic data |
+| Create/edit ordinary notes in Library | `knot serve`; add `--no-open` to print the local session URL |
 | Export that interface without opening it | `knot browse` or `just browse` |
 | Select colours/fonts | `knot theme list`, `knot theme use NAME` |
 | Define knowledge topics | `knot themes list`, `knot themes add ...`, `knot themes import FILE` |

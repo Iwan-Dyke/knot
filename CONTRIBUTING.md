@@ -34,6 +34,9 @@ if they are not already discoverable; Linux also needs the browsers' system libr
 # Current Graph/Library interface; requires Pandoc and the viewer extra.
 node scripts/test_library_browser.cjs chromium
 node scripts/test_library_browser.cjs firefox
+# Optional local Library editing; synthetic datasets only.
+just test-library-authoring chromium
+just test-library-authoring firefox
 # Supported legacy graph viewer.
 node scripts/test_viewer_browser.cjs
 ```
@@ -41,6 +44,8 @@ node scripts/test_viewer_browser.cjs
 These scripts generate temporary synthetic fixtures and report their artifact
 directories. The Graph/Library checks share `data-examples/` and cover reading,
 history, graph filters, spacing, focused/live motion and dense neighbourhoods.
+The authoring checks cover saves, conflicts, retries, previews and refresh failures
+through the real local server in Chromium and Firefox.
 The legacy script also accepts a supplied export; personal HTML makes its screenshots
 and results private material too. Performance scripts, profiles and measured limits
 are documented in [Library performance](docs/library-performance.md).

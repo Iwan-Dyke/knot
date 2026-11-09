@@ -103,6 +103,23 @@ current files does not sanitise earlier commits or remote URLs.
 
 ## Verification before publication
 
+The v0.2.0 feature update adds optional owner-local Library authoring through
+`knot serve`. Ordinary Markdown/Org notes can be created, previewed and edited
+through the existing note APIs, with immutable history, conflict detection and
+safe retries. Curated notes and pinned sources remain read-only in this editor;
+offline exports contain no editing capability. See
+[ADR 0050](../design_decisions/0050-owner-local-library-authoring.md).
+The source passed 543 tests and lint/format checks. Chromium and Firefox authoring
+checks cover actual saves, concurrent edits, retained drafts, lost responses,
+refresh failures, delayed previews, Unicode, CRLF and Org. The Chromium offline
+Library/Graph regression also passes, including eight accelerated hours of Idle
+and continuous camera/layout checks. Accelerated playback does not establish
+real-time memory behaviour, and drafts remain in memory only.
+The v0.2.0 wheel and source archive were checked for editor assets, MIT metadata,
+third-party notices, public examples and excluded runtime/private data. The wheel's
+local server saved a synthetic revision, refreshed its snapshot and produced a
+read-only export using the existing dependencies; no new dependencies were installed.
+
 The v0.1.1 maintenance update separates terminal workflows, navigation and graph
 styling, and makes audit/retrieval stages explicit. Unsupported CLI dataset-prefix
 combinations now produce an argument error rather than reaching an unrelated

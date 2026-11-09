@@ -3,6 +3,8 @@
 KNOT is one Python application organised into feature packages. Local files hold
 the authoritative knowledge; an in-memory Oxigraph store supplies a query view.
 There are no separately deployed services or mandatory model providers.
+An explicitly started loopback session can serve the Library editor; offline exports
+and CLI/MCP workflows remain independently usable.
 
 ```mermaid
 flowchart LR
@@ -111,6 +113,7 @@ publishes the completed HTML atomically; this is not a whole-dataset transaction
 | Module | Responsibility |
 | --- | --- |
 | `interfaces/view_cli.py` | Shared launch entry point for `knot view` and `just visualise`, with explicit legacy selection |
+| `interfaces/library_server.py` | Optional owner-local loopback session, fixed authenticated routes, ordinary-note create/save and verified snapshot refresh |
 | `writing/examples.py` | Disposable synthetic datasets through the existing authoring APIs; shared by the CLI demo and tests |
 | `presentation/library_snapshot.py` | Read projection through existing note, label, provenance and review owners; current/cited bodies, history metadata and input signatures |
 | `presentation/note_records.py` | Verified current-note projection shared with the legacy viewer |
@@ -129,6 +132,7 @@ publishes the completed HTML atomically; this is not a whole-dataset transaction
 | `presentation/library_idle_scene.js` | Session geography, stable incremental placement, easing and bounded neighbourhood unions |
 | `presentation/library_idle.js` | Focus/read/travel sequence, gradual neighbourhood fades, controls and visibility/full-screen handling |
 | `presentation/library_navigation.js` | Route transitions, selection, browser history and saved manual context across Idle entry/exit |
+| `presentation/library_authoring.js` | Optional modal editor, preview, draft/conflict handling and save/refresh separation |
 | `presentation/library.js` | DOM composition, search/tree/reader controls and session-only recents |
 
 [ADR 0048](../design_decisions/0048-idle-mode-autonomous-knowledge-exploration.md)
@@ -136,11 +140,16 @@ adds manually started Idle exploration. Graph and Idle share the graph adapter's
 rendering function and one vis-network instance per window. Idle has its own traversal
 and layout state; the navigation controller saves manual context through shell
 callbacks on entry and restores it on exit.
-Automatic steps bypass ordinary history and recents. The shared model remains immutable.
+Automatic steps bypass ordinary history and recents. Idle does not mutate the shared
+knowledge model.
 
-Browser modules consume the immutable exported model and never write authoritative
-files. No server, database, framework, ontology or parallel relationship store is
-introduced. [Synthetic example inputs](../data-examples/README.md) are shared by
+Offline browser modules consume the immutable exported model and never write
+authoritative files. [ADR 0050](../design_decisions/0050-owner-local-library-authoring.md)
+adds an explicitly enabled loopback editor using the existing note APIs. Its
+session-only snapshot cache is rebuilt when inputs change; a successful save
+refreshes the browser's model/indexes while retaining the selected canonical identity.
+Exports contain no authoring capability. No database, framework, ontology or parallel
+relationship store is introduced. [Synthetic example inputs](../data-examples/README.md) are shared by
 the demo generator and tests; generated datasets remain outside the code checkout.
 
 [ADR 0036](../design_decisions/0036-modular-retrieval-and-shared-boundaries.md) and

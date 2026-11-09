@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-08
-- Implementation: Implemented browsing release; browser authoring remains deferred
+- Implementation: Implemented browsing release; optional ordinary-note authoring added by ADR 0050
 - Related: [0014](0014-one-logical-personal-knowledge-graph.md), [0022](0022-native-free-text-knowledge-and-entity-notes.md), [0026](0026-live-offline-graph-filters.md), [0032](0032-guided-zettelkasten-authoring.md), [0035](0035-notes-in-the-unified-graph.md), [0044](0044-extensible-visual-and-knowledge-themes.md), [0046](0046-guided-source-backed-curation.md)
 - Supersedes: None. Adds a focused Graph entry screen and rich Library reading alongside ADRs 0026/0035; retains their identity, evidence and filtering contracts and the existing viewer.
 
@@ -457,6 +457,10 @@ embedded in it; previous copies cannot be revoked by changing a later grant.
 
 ### Future authoring
 
+[ADR 0050](0050-owner-local-library-authoring.md) delivers the later optional local
+transport for ordinary-note creation/editing. The offline browsing release and the
+boundaries below remain unchanged; curation and review editing are still separate.
+
 Keep selection/revision references available to a later command adapter, without
 implementing an editor or write endpoint in the browsing release. Note creation,
 optimistic `save_note(expected=...)`, navigation changes, theme definition changes,
@@ -678,7 +682,7 @@ remain separate from the delivered browsing interface.
 | Additional converter/browser versions | Extend the tested matrix before promising support beyond the recorded versions. |
 | Broader hardware, memory and accessibility validation | Test additional desktops/laptops and assistive technology; sampled JS heap is not peak browser memory. |
 | Alternative static graph layout and optional context mini-graph | Revisit if radial placement with optional live arrangement and the main local Graph prove insufficient; neither changes knowledge semantics. |
-| Browser authoring | Requires a separate transport, permission and concurrency design. |
+| Browser authoring | Ordinary notes are covered by ADR 0050; curation, organisation and review still require separate increments. |
 
 ## Implementation record
 
@@ -735,4 +739,5 @@ Relevant reusable regression suites include [viewer export](../tests/test_visual
 
 Implementation adds presentation code, tests, synthetic examples and documentation.
 No authoritative personal knowledge, grants, storage schema or dependency licences
-are changed. Browser editing, persistent recents and manual topic nesting are deferred.
+are changed. The original release deferred browser editing; ADR 0050 adds the optional
+ordinary-note editor. Persistent recents and manual topic nesting remain deferred.

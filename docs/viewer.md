@@ -76,8 +76,57 @@ claims and historical corrections. Expand a claim or citation for its evidence;
 **Open pinned source** reads that exact included revision. An entity's reader lists
 its associated notes and literal attributes. **Explore connections** switches to a
 focused graph of the same canonical record; **Read in Library** returns to reading.
-Browser editing and review actions are not implemented; use the CLI or authorised
-MCP authoring workflows.
+Offline exports are read-only. Use the optional local Library below to edit ordinary
+notes; source-backed curation and claim review use the CLI or authorised MCP workflows.
+
+## Write notes in the local Library
+
+```sh
+knot serve
+knot serve --data-root /path/to/dataset --no-open
+```
+
+This starts an owner-local app on `127.0.0.1`, selects a free port and opens Library.
+It uses the same installation requirements as the viewer, including Pandoc, and
+does not change the selected dataset configuration. The printed URL grants access
+to that dataset for this server session: keep it private. Stop the server with
+Ctrl+C; restarting gives it a new session URL. `--port` chooses a loopback port;
+`--visual-theme` selects a palette. Remote hosting and shared-user access are not
+supported. This owner session is separate from scoped MCP grants.
+
+1. Choose **New note**, or select a current ordinary note and choose **Edit note**.
+2. Enter a title and body. New notes may optionally name an author and choose
+   Markdown or Org. Existing notes retain their author, format and organisation.
+3. Choose **Preview** to check formatting. Preview does not save anything.
+4. Choose **Save note**. The existing note API writes a new immutable revision,
+   then the page refreshes its knowledge and selects the saved note.
+
+Titles and authors are optional; empty notes are valid. Paragraphs and Unicode
+are retained. Unchanged bodies keep their exact bytes, including CRLF line endings;
+edited CRLF-only notes retain that convention. Mixed newline styles may normalise
+when their text is edited. The saving agent is recorded as `knot-library`; an edit
+does not replace original authorship or accept claims.
+
+If another writer saved first, your draft stays in the editor alongside the latest
+saved text. Copy any changes you want to keep before **Discard draft and load latest**,
+then reconcile them and save against that version. Cancelling a dirty draft asks
+for confirmation. Drafts live only in the page and do not survive a browser crash.
+
+If a response is lost, retry the same save: the draft keeps its identity and the
+server recognises identical retries. If the note saved but refreshing failed, the
+editor says so and offers **Retry refresh**, which does not save another note.
+Use **Refresh** for changes made through the CLI or another window. There is no
+background polling; editing opens the current verified version before you write.
+
+Curated notes, imported documents and pinned historical sources are read-only in
+this editor. Ordinary notes with entity declarations still require their quoted
+evidence to remain valid; edits that invalidate it must use the existing authoring
+workflow. The editor changes titles/bodies only, with no claim, grant, theme,
+identity, deletion or review actions. JSON requests are limited to 1 MiB; use the
+CLI for larger edits. Snapshot rebuilding may take longer for large datasets.
+
+`knot view` and `knot browse` continue to generate independent read-only files. They
+carry no editing session or permission to write back to a dataset.
 
 ## Focused and live graph exploration
 
