@@ -7,13 +7,13 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from pyoxigraph import NamedNode
+from pyoxigraph import NamedNode, Store
 
 from knot.graph.rdf import DERIVED, META, RDF_TYPE, VOCAB, values
 from knot.retrieval_engine.context import _prepare
 from knot.retrieval_engine.evidence import _Evidence
 from knot.retrieval_engine.graph import _include_assertion, _iri
-from knot.retrieval_engine.policy import FRAMEWORK, GENERIC
+from knot.retrieval_engine.policy import FRAMEWORK, GENERIC, Policy
 from knot.retrieval_engine.ranking import CONCEPTS as CONCEPTS
 from knot.retrieval_engine.ranking import INTENTS as INTENTS
 from knot.retrieval_engine.ranking import NORMAL as NORMAL
@@ -216,12 +216,24 @@ def _sections(text, snapshot):
         offset += len(section['text'])
 
 
-def _text_candidates(
-    store, records, aliases, scorer, evidence, policy, limits, cap, result, *, seed=None
-):
-    if policy.accepted_only:
-        result['omissions']['source_only_excluded'] = True
-        return []
+@dataclass(frozen=True)
+class _TextSearch:
+    store: Store
+    records: list
+    aliases: set
+    scorer: _Question
+    evidence: _Evidence
+    policy: Policy
+    limits: Limits
+    cap: int
+    result: dict
+    seed: str | None
+
+
+def _text_revisions(search):
+    store, records, aliases = search.store, search.records, search.aliases
+    scorer, evidence, policy = search.scorer, search.evidence, search.policy
+    limits, result, seed = search.limits, search.result, search.seed
     revisions = {
         q.subject.value
         for q in store.quads_for_pattern(None, NamedNode(VOCAB + 'snapshotPath'), None, META)
@@ -270,10 +282,12 @@ def _text_candidates(
     revisions = select_revisions(
         revisions, store, records, scorer, evidence, limits, result, aliases
     )
-    descriptors = {'account', 'framework', 'project'}
-    alias_terms = [
-        tokens(alias) - descriptors or tokens(alias) for alias in sorted(aliases) if tokens(alias)
-    ]
+    return revisions, requested_unit, direct_source
+
+
+def _verified_text(search, revisions, alias_terms, direct_source):
+    store, records, evidence = search.store, search.records, search.evidence
+    limits, result, seed = search.limits, search.result, search.seed
     seed_evidence = [
         eid.value
         for record in records
@@ -340,6 +354,11 @@ def _text_candidates(
         if matched
         for document in citation['documents']
     )
+    return verified, matched_documents, seed_spans
+
+
+def _text_sections(search, verified, matched_documents, requested_unit):
+    scorer, limits, result = search.scorer, search.limits, search.result
     sections = []
     section_limit = False
     for text, citation, matched in verified:
@@ -382,9 +401,11 @@ def _text_candidates(
             sections.append((quote, locator, citation, matched))
         if section_limit:
             break
-    scorer.fit(quote for quote, _, _, _ in sections)
-    if requested_unit and verified and not sections:
-        raise ValueError('UnknownSourceUnit')
+    return sections
+
+
+def _score_text_sections(search, sections, alias_terms, seed_spans, requested_unit):
+    scorer, cap, result = search.scorer, search.cap, search.result
     candidates = []
     for quote, locator, citation, matched in sections:
         body = re.sub(r'^\s*(?:[#:*]|:PROPERTIES:|:END:).*$', '', quote, flags=re.M).strip()
@@ -451,6 +472,30 @@ def _text_candidates(
             result,
         )
     return candidates
+
+
+def _text_candidates(
+    store, records, aliases, scorer, evidence, policy, limits, cap, result, *, seed=None
+):
+    if policy.accepted_only:
+        result['omissions']['source_only_excluded'] = True
+        return []
+    search = _TextSearch(
+        store, records, aliases, scorer, evidence, policy, limits, cap, result, seed
+    )
+    revisions, requested_unit, direct_source = _text_revisions(search)
+    descriptors = {'account', 'framework', 'project'}
+    alias_terms = [
+        tokens(alias) - descriptors or tokens(alias) for alias in sorted(aliases) if tokens(alias)
+    ]
+    verified, matched_documents, seed_spans = _verified_text(
+        search, revisions, alias_terms, direct_source
+    )
+    sections = _text_sections(search, verified, matched_documents, requested_unit)
+    scorer.fit(quote for quote, _, _, _ in sections)
+    if requested_unit and verified and not sections:
+        raise ValueError('UnknownSourceUnit')
+    return _score_text_sections(search, sections, alias_terms, seed_spans, requested_unit)
 
 
 def retrieve_ranked(

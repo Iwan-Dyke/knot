@@ -90,6 +90,21 @@ class QualityTests(unittest.TestCase):
     def codes(self, result, severity='errors'):
         return {finding['code'] for finding in result[severity]}
 
+    def test_audit_keeps_independent_errors_and_later_warnings(self):
+        self.claim(quote='Wrong quotation', subject_type='Project', subject_label='Meeting')
+        self.root.joinpath('graph/broken.trig').write_text('not valid RDF {')
+        create_note(self.root, 'A separate observation.', author='Codex')
+        before = self.files()
+        report = audit(self.root)
+        self.assertLessEqual({'invalid_graph', 'invalid_citation'}, self.codes(report))
+        self.assertLessEqual(
+            {'missing_derivation', 'decision_subject_needs_review', 'generic_entity_name'},
+            self.codes(report, 'warnings'),
+        )
+        self.assertEqual(report['counts']['native_notes'], 1)
+        self.assertEqual(report['counts']['assertions'], 1)
+        self.assertEqual(self.files(), before)
+
     def test_audit_preserves_accepted_reviews_and_all_files(self):
         self.claim()
         decide(self.root, 'urn:claim', 'accept', reviewer='Owner', reason='Checked original.')

@@ -5,6 +5,7 @@ import json
 import re
 import unicodedata
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from pyoxigraph import Literal, NamedNode, RdfFormat, Store
@@ -192,15 +193,36 @@ def name_warnings(label):
     ]
 
 
-def audit(root):
-    """Return findings, never merge identities, modify files or infer claim acceptance."""
-    root = Path(root).resolve()
-    result = {'counts': {}, 'errors': [], 'warnings': []}
-    counts = result['counts']
+@dataclass(frozen=True)
+class _GraphAudit:
+    store: Store
+    evidence_claims: dict
+    revision_claims: dict
+    labels: dict
+    types: dict
+    endpoints: set[str]
+    active_triples: list
+    active_assertions: set[str]
+    endpoint_labels: list
+    literal_counts: Counter
+    assertion_endpoints: dict
 
-    def report(severity, code, record, detail, **extra):
-        result[severity].append({'code': code, 'record': record, 'detail': str(detail), **extra})
 
+@dataclass(frozen=True)
+class _NoteAudit:
+    revisions: dict
+    bodies: dict
+
+
+@dataclass(frozen=True)
+class _NameAudit:
+    bindings: dict
+    labels: dict
+    types: dict
+    current: dict
+
+
+def _audit_graph(root, counts, report):
     store = Store()
     for path in sorted(managed_path(root, 'graph').glob('*.trig')):
         try:
@@ -331,6 +353,22 @@ def audit(root):
                 assertions=sorted(targets),
             )
 
+    return _GraphAudit(
+        store=store,
+        evidence_claims=evidence_claims,
+        revision_claims=revision_claims,
+        labels=labels,
+        types=types,
+        endpoints=endpoints,
+        active_triples=active_triples,
+        active_assertions=active_assertions,
+        endpoint_labels=endpoint_labels,
+        literal_counts=literal_counts,
+        assertion_endpoints=assertion_endpoints,
+    )
+
+
+def _audit_notes(root, counts, report):
     revisions, bodies = {}, defaultdict(set)
     valid_derivations, conversational = set(), []
     try:
@@ -411,6 +449,12 @@ def audit(root):
             'source body; preserve the source and consider a curated note',
         )
 
+    return _NoteAudit(revisions, bodies)
+
+
+def _audit_evidence(root, graph, notes, counts, report):
+    store, revisions, bodies = graph.store, notes.revisions, notes.bodies
+    evidence_claims, active_assertions = graph.evidence_claims, graph.active_assertions
     # This is an owner-local audit; admitting historical sources here does not widen MCP grants.
     for revision in sorted(revisions):
         try:
@@ -480,6 +524,12 @@ def audit(root):
                 revisions=sorted(accounts),
             )
 
+    return quotes_by_assertion
+
+
+def _audit_semantics(root, graph, quotes_by_assertion, counts, report):
+    store, labels, types = graph.store, graph.labels, graph.types
+    active_triples, endpoint_labels = graph.active_triples, graph.endpoint_labels
     bindings = {}
     try:
         bindings = {a.value: b.value for a, b in identity_bindings(store).items()}
@@ -570,6 +620,13 @@ def audit(root):
                     )
     except READ_ERRORS as error:
         report('errors', 'invalid_entity_labels', 'curation/entity-labels.json', error)
+    return _NameAudit(bindings, canonical_labels, canonical_types, current_labels)
+
+
+def _audit_associations(graph, notes, names, report):
+    store, revisions = graph.store, notes.revisions
+    revision_claims, assertion_endpoints = graph.revision_claims, graph.assertion_endpoints
+    bindings, canonical_labels = names.bindings, names.labels
     source_entities = defaultdict(set)
     for revision, targets in revision_claims.items():
         for target in targets:
@@ -612,6 +669,12 @@ def audit(root):
                     entity=entity,
                     source_revisions=sorted({pin['revision'] for pin in pins}),
                 )
+
+
+def _audit_names(graph, names, counts, report):
+    bindings, canonical_labels = names.bindings, names.labels
+    canonical_types, current_labels = names.types, names.current
+    endpoints, literal_counts = graph.endpoints, graph.literal_counts
     collisions = defaultdict(set)
     for entity, names in sorted(canonical_labels.items()):
         for label in sorted(names):
@@ -698,6 +761,24 @@ def audit(root):
     counts['labelled_resources'] = len(canonical_labels)
     counts['domain_endpoints'] = len(canonical_endpoints)
     counts['labelled_or_typed_resources'] = len(set(canonical_labels) | entity_referents)
+
+
+def audit(root):
+    """Run ordered audit passes without writing data or accepting claims."""
+    root = Path(root).resolve()
+    result = {'counts': {}, 'errors': [], 'warnings': []}
+    counts = result['counts']
+
+    def report(severity, code, record, detail, **extra):
+        result[severity].append({'code': code, 'record': record, 'detail': str(detail), **extra})
+
+    # Evidence populates the verification view before identity and semantic checks.
+    graph = _audit_graph(root, counts, report)
+    notes = _audit_notes(root, counts, report)
+    quotes = _audit_evidence(root, graph, notes, counts, report)
+    names = _audit_semantics(root, graph, quotes, counts, report)
+    _audit_associations(graph, notes, names, report)
+    _audit_names(graph, names, counts, report)
     counts['errors'] = len(result['errors'])
     counts['warnings'] = len(result['warnings'])
     counts['warning_codes'] = dict(sorted(Counter(w['code'] for w in result['warnings']).items()))
