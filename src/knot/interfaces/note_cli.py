@@ -1,11 +1,14 @@
 """Capture and read native notes through the owner-local note API."""
 
 import argparse
+import importlib
 import json
 import shlex
 import sys
 from pathlib import Path
 
+from knot.interfaces.console import _ask as _ask
+from knot.interfaces.console import _wizard
 from knot.shared.datasets import cli_data_root
 from knot.shared.vocabulary import KINDS
 from knot.writing.notes import create_note, list_notes, note_history, read_note, save_note
@@ -19,108 +22,160 @@ def _view_hint(result, data_root):
         )
 
 
-def _ask(prompt, *, end='\n'):
-    print(prompt, file=sys.stderr, flush=True, end=end)
-    line = sys.stdin.readline()
-    if not line:
-        raise ValueError('Capture cancelled: input ended before saving')
-    return line.rstrip('\r\n')
+DELEGATES = {
+    'theme': ('knot.interfaces.visual_theme_cli', False, 'Choose or create a visual theme'),
+    'view': (
+        'knot.interfaces.view_cli',
+        True,
+        'Open Graph and Library; use knot view example for a demo',
+    ),
+    'browse': ('knot.presentation.library', True, 'Export the offline Graph and Library'),
+    'themes': (
+        'knot.interfaces.theme_cli',
+        True,
+        'List, add or import knowledge theme definitions',
+    ),
+    'mcp': (
+        'knot.interfaces.mcp_server',
+        False,
+        'Serve MCP; use knot mcp --help for startup options',
+    ),
+    'dataset': ('knot.interfaces.dataset_cli', False, 'Initialise, select or clone a dataset'),
+}
 
 
-def _wizard(metadata, *, confirm=True, curated=False):
-    if metadata.get('format', 'markdown') != 'markdown' or (
-        'derivation' in metadata and not curated
-    ):
-        raise ValueError('Guided capture uses Markdown; use a file for Org or curated notes')
-    print('Section 1: Note details (optional)', file=sys.stderr)
-    for field, prompt in (
-        ('title', 'Title (optional):'),
-        ('author', 'Your name / author (optional; left unknown if skipped):'),
-        ('kind', f'Kind (optional: {", ".join(sorted(KINDS))}):'),
-    ):
-        if field not in metadata:
-            while True:
-                value = _ask(prompt).strip()
-                if field != 'kind' or not value or value in KINDS:
-                    metadata[field] = value or None
-                    break
-                print(
-                    'Choose a listed kind or press Enter to leave it unclassified.', file=sys.stderr
-                )
-    print(
-        '\nSection 2: Your note\n'
-        'Write one continuous note in your own words. Things to consider:\n'
-        '  • What prompted this? Include context or a source where useful.\n'
-        '  • What do you think, and why? What matters to you here?\n'
-        '  • What does it connect to? What is uncertain or has changed your mind?\n'
-        '  • Is there anything you want to try or revisit?\n'
-        'These are prompts to think about, not separate answers to fill in.\n'
-        'Enter keeps writing; blank lines keep paragraph breaks.\n'
-        'Type /done on its own line to finish, or /cancel to cancel.\n'
-        'No headings or guidance will be added to your note.',
-        file=sys.stderr,
-    )
-    lines = []
-    while True:
-        line = _ask('note> ', end='')
-        if line == '/cancel':
-            raise ValueError('Capture cancelled: nothing saved')
-        if line == '/done':
-            break
-        lines.append(line)
-    if not any(line.strip() for line in lines):
-        raise ValueError('Capture cancelled: no note text entered')
-    body = '\n'.join(lines) + '\n'
-    print('\nPreview', file=sys.stderr)
-    print(json.dumps(metadata, ensure_ascii=False, indent=2), file=sys.stderr)
-    print(body, file=sys.stderr)
-    if confirm and _ask('Save this note? [y/N]').strip().lower() not in ('y', 'yes'):
-        raise ValueError('Capture cancelled: nothing saved')
-    return body
-
-
-def main(argv=None):
-    arguments = sys.argv[1:] if argv is None else argv
-    if arguments and arguments[0] == 'theme':
-        from knot.interfaces.visual_theme_cli import main as visual_theme_main
-
-        return visual_theme_main(arguments[1:])
+def _delegated_command(arguments):
     prefix, routed = [], arguments
     if arguments and arguments[0] == '--data-root' and len(arguments) > 2:
         prefix, routed = arguments[:2], arguments[2:]
     elif arguments and arguments[0].startswith('--data-root='):
         prefix, routed = arguments[:1], arguments[1:]
-    if routed and routed[0] == 'view':
-        from knot.interfaces.view_cli import main as view_main
+    if routed and routed[0] in DELEGATES:
+        module, accepts_prefix, _ = DELEGATES[routed[0]]
+        if not prefix or accepts_prefix:
+            return module, [*prefix, *routed[1:]]
+    return None
 
-        return view_main([*prefix, *routed[1:]])
-    if routed and routed[0] == 'browse':
-        from knot.presentation.library import main as library_main
 
-        return library_main([*prefix, *routed[1:]])
-    if routed and routed[0] == 'themes':
-        from knot.interfaces.theme_cli import main as theme_main
+def _refresh(args):
+    from knot.writing.sync import refresh
 
-        return theme_main([*prefix, *routed[1:]])
-    if arguments and arguments[0] == 'dataset':
-        from knot.interfaces.dataset_cli import main as dataset_main
+    refresh(args.data_root)
 
-        return dataset_main(arguments[1:])
-    if arguments and arguments[0] == 'mcp':
-        from knot.interfaces.mcp_server import main as mcp_main
 
-        return mcp_main(arguments[1:])
+def _push(args):
+    from knot.writing.sync import push
+
+    push(args.data_root)
+
+
+def _serve(args):
+    from knot.interfaces.mcp_server import main
+
+    main(['--data-root', str(args.data_root)])
+
+
+def _agent_task(args):
+    from knot.writing.authoring import agent_task
+
+    print(agent_task(args.data_root, args.note, revision=args.revision), end='')
+
+
+def _metadata(args, fields):
+    return {key: getattr(args, key) for key in fields if hasattr(args, key)}
+
+
+def _curate(args):
+    from knot.interfaces.authoring_cli import run_workflow
+
+    return run_workflow(
+        args.data_root, _metadata(args, ('title', 'author', 'kind', 'agent')), curate=True
+    )
+
+
+def _resume(args):
+    from knot.interfaces.authoring_cli import choose_draft, run_workflow
+
+    path = args.draft if args.draft is not None else choose_draft(args.data_root)
+    if path is not None:
+        return run_workflow(args.data_root, {}, draft_path=path)
+    return None
+
+
+def _write(args):
+    metadata = _metadata(args, ('format', 'title', 'author', 'kind', 'entities', 'agent', 'reason'))
+    for field in ('navigation', 'derivation'):
+        path = getattr(args, field)
+        if path is not None:
+            metadata[field] = json.loads(path.read_bytes())
+    if args.file is None and not args.writing_only:
+        from knot.interfaces.authoring_cli import run_workflow
+
+        return run_workflow(args.data_root, metadata)
+    if args.file is None:
+        body = _wizard(metadata)
+    elif args.file == '-':
+        body = sys.stdin.buffer.read()
+    else:
+        body = Path(args.file).read_bytes()
+    if args.action == 'save':
+        return save_note(args.data_root, args.note, body, expected=args.expected, **metadata)
+    metadata.setdefault(
+        'format', 'org' if args.file and Path(args.file).suffix.lower() == '.org' else 'markdown'
+    )
+    return create_note(args.data_root, body, **metadata)
+
+
+def _show(args):
+    result = read_note(args.data_root, args.note, revision=args.revision)
+    if args.body_only:
+        sys.stdout.buffer.write(result['body'].encode('utf-8'))
+        return None
+    return result
+
+
+def _history(args):
+    return note_history(args.data_root, args.note)
+
+
+def _list(args):
+    result = list_notes(args.data_root)
+    if args.theme:
+        result = [
+            n
+            for n in result
+            if args.theme in {t['id'] for t in n.get('navigation', {}).get('themes', [])}
+        ]
+    if args.linked_to:
+        result = [
+            n
+            for n in result
+            if args.linked_to in {link['note'] for link in n.get('navigation', {}).get('links', [])}
+        ]
+    return result
+
+
+HANDLERS = {
+    'refresh': _refresh,
+    'push': _push,
+    'mcp': _serve,
+    'agent-task': _agent_task,
+    'curate': _curate,
+    'resume': _resume,
+    'add': _write,
+    'save': _write,
+    'show': _show,
+    'history': _history,
+    'list': _list,
+}
+
+
+def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-root', type=Path)
     commands = parser.add_subparsers(dest='action', required=True)
-    commands.add_parser('theme', help='Choose or create a visual theme; use knot theme --help')
-    commands.add_parser('view', help='Open Graph and Library; use knot view example for a demo')
-    commands.add_parser(
-        'browse', help='Export the offline Graph and Library; use knot browse --help'
-    )
-    commands.add_parser('themes', help='List, add or import knowledge theme definitions')
-    commands.add_parser('mcp', help='Serve MCP; use knot mcp --help for startup options')
-    commands.add_parser('dataset', help='Initialise, select or clone a dataset')
+    for name, (_, _, help_text) in DELEGATES.items():
+        commands.add_parser(name, help=help_text)
     commands.add_parser('push', help='Commit knowledge data and push to the configured upstream')
     commands.add_parser('refresh', help='Pull upstream changes with a fast-forward only')
     listing = commands.add_parser('list', help='List verified current note metadata')
@@ -190,97 +245,27 @@ def main(argv=None):
         command.add_argument(
             '--derivation', type=Path, help='JSON provenance for a separate curated note'
         )
-    args = parser.parse_args(argv)
+    for action, handler in HANDLERS.items():
+        commands.choices[action].set_defaults(handler=handler)
+    return parser
+
+
+def main(argv=None):
+    arguments = sys.argv[1:] if argv is None else argv
+    delegated = _delegated_command(arguments)
+    if delegated:
+        module, forwarded = delegated
+        # Keep optional MCP and viewer dependencies lazy for ordinary note commands.
+        return importlib.import_module(module).main(forwarded)
+    parser = _parser()
+    args = parser.parse_args(arguments)
+    if not hasattr(args, 'handler'):
+        parser.error(f"Use knot {args.action} --help for this command's options")
     args.data_root = cli_data_root(parser, args.data_root)
     try:
-        if args.action == 'refresh':
-            from knot.writing.sync import refresh
-
-            refresh(args.data_root)
+        result = args.handler(args)
+        if result is None:
             return
-        if args.action == 'push':
-            from knot.writing.sync import push
-
-            push(args.data_root)
-            return
-        if args.action == 'mcp':
-            from knot.interfaces.mcp_server import main as mcp_main
-
-            return mcp_main(['--data-root', str(args.data_root)])
-        if args.action == 'agent-task':
-            from knot.writing.authoring import agent_task
-
-            print(agent_task(args.data_root, args.note, revision=args.revision), end='')
-            return
-        if args.action == 'curate':
-            from knot.writing.authoring import run_workflow
-
-            metadata = {
-                key: getattr(args, key)
-                for key in ('title', 'author', 'kind', 'agent')
-                if hasattr(args, key)
-            }
-            result = run_workflow(args.data_root, metadata, curate=True)
-        elif args.action == 'resume':
-            from knot.writing.authoring import choose_draft, run_workflow
-
-            path = args.draft if args.draft is not None else choose_draft(args.data_root)
-            if path is None:
-                return
-            result = run_workflow(args.data_root, {}, draft_path=path)
-        elif args.action in ('add', 'save'):
-            metadata = {
-                key: getattr(args, key)
-                for key in ('format', 'title', 'author', 'kind', 'entities', 'agent', 'reason')
-                if hasattr(args, key)
-            }
-            if args.navigation is not None:
-                metadata['navigation'] = json.loads(args.navigation.read_bytes())
-            if args.derivation is not None:
-                metadata['derivation'] = json.loads(args.derivation.read_bytes())
-            if args.file is None and not args.writing_only:
-                from knot.writing.authoring import run_workflow
-
-                result = run_workflow(args.data_root, metadata)
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-                _view_hint(result, args.data_root)
-                return
-            if args.file is None:
-                body = _wizard(metadata)
-            else:
-                body = sys.stdin.buffer.read() if args.file == '-' else Path(args.file).read_bytes()
-            if args.action == 'add':
-                metadata.setdefault(
-                    'format',
-                    'org' if args.file and Path(args.file).suffix.lower() == '.org' else 'markdown',
-                )
-                result = create_note(args.data_root, body, **metadata)
-            else:
-                result = save_note(
-                    args.data_root, args.note, body, expected=args.expected, **metadata
-                )
-        elif args.action == 'show':
-            result = read_note(args.data_root, args.note, revision=args.revision)
-            if args.body_only:
-                sys.stdout.buffer.write(result['body'].encode('utf-8'))
-                return
-        elif args.action == 'history':
-            result = note_history(args.data_root, args.note)
-        else:
-            result = list_notes(args.data_root)
-            if args.theme:
-                result = [
-                    n
-                    for n in result
-                    if args.theme in {t['id'] for t in n.get('navigation', {}).get('themes', [])}
-                ]
-            if args.linked_to:
-                result = [
-                    n
-                    for n in result
-                    if args.linked_to
-                    in {link['note'] for link in n.get('navigation', {}).get('links', [])}
-                ]
         if args.action != 'show':
             # Capture receipts and history retain provenance without repeating long bodies.
             result = (

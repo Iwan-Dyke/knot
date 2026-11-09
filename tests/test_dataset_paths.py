@@ -271,7 +271,7 @@ class DatasetPathTests(unittest.TestCase):
         (self.root / 'drafts').symlink_to(self.outside, target_is_directory=True)
         with self.assertRaisesRegex(ValueError, 'Unsafe'):
             choose_draft(self.root)
-        with patch('knot.interfaces.note_cli._wizard', return_value='Synthetic capture'):
+        with patch('knot.interfaces.authoring_cli._wizard', return_value='Synthetic capture'):
             with self.assertRaisesRegex(ValueError, 'Unsafe'):
                 run_workflow(self.root, {})
         self.assertEqual(list(self.outside.iterdir()), [])

@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from knot.notes import note_history, read_note
 
@@ -15,6 +16,24 @@ class NoteCliTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.directory = Path(self.tmp.name)
         self.root = self.directory / 'data'
+
+    def test_delegated_commands_preserve_arguments_and_dataset_prefix(self):
+        from knot.interfaces.note_cli import main
+
+        for command, module, rooted in (
+            ('view', 'knot.interfaces.view_cli', True),
+            ('browse', 'knot.presentation.library', True),
+            ('themes', 'knot.interfaces.theme_cli', True),
+            ('theme', 'knot.interfaces.visual_theme_cli', False),
+            ('dataset', 'knot.interfaces.dataset_cli', False),
+            ('mcp', 'knot.interfaces.mcp_server', False),
+        ):
+            prefixes = [[], ['--data-root', str(self.root)], [f'--data-root={self.root}']]
+            for prefix in prefixes if rooted else [[]]:
+                arguments = ['--help']
+                with self.subTest(command=command, prefix=prefix), patch(module + '.main') as run:
+                    main([*prefix, command, *arguments])
+                    run.assert_called_once_with([*prefix, *arguments])
 
     def cli(self, *arguments, body=None, success=True, just=False):
         if (

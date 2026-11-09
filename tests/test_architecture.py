@@ -52,6 +52,21 @@ def responses(root):
 
 
 class ArchitectureTests(unittest.TestCase):
+    def test_authoring_core_does_not_depend_on_terminal_interfaces(self):
+        # Historical workflow entry points remain thin compatibility delegates.
+        delegates = {
+            'writing.authoring': {'choose_draft', 'run_workflow'},
+            'writing.curation_workflow': {'select_sources', 'prepare_curation', 'edit_curation'},
+        }
+        for module, compatibility in delegates.items():
+            tree = ast.parse(module_path(module).read_text())
+            for node in tree.body:
+                if isinstance(node, ast.FunctionDef) and node.name in compatibility:
+                    continue
+                for child in ast.walk(node):
+                    if isinstance(child, ast.ImportFrom) and child.module:
+                        self.assertFalse(child.module.startswith('knot.interfaces.'), module)
+
     def test_all_legacy_modules_resolve_to_their_implementation(self):
         for path in (SOURCE / '_compat').glob('*.py'):
             if path.stem == '__init__':
