@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "knot-knowledge"
+version = "0.1.0"
+description = "Local, traceable RDF knowledge from personal documents"
+license = "MIT"
+license-files = ["LICENSE", "LICENSE_SCOPE.txt", "THIRD_PARTY_NOTICES.txt"]
+requires-python = ">=3.12"
+dependencies = ["pyoxigraph==0.5.13", "pypdf==6.21.4"]
+
+[project.scripts]
+knot = "knot.interfaces.note_cli:main"
+
+[project.optional-dependencies]
+visualisation = ["pyvis==0.3.2"]
+mcp = ["mcp==2.3.0"]
+dev = ["pyvis==0.3.2", "ruff==0.15.20", "mcp==2.3.0"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.setuptools.package-data]
+"knot.graph" = ["ontology.ttl"]
+"knot.presentation" = ["*.html", "*.js", "*.css", "*-license.txt", "themes/*.json", "themes/*.css"]
+
+[tool.setuptools.data-files]
+"share/knot/data-examples" = [
+    "data-examples/garden.md", "data-examples/reading.org", "data-examples/question.md",
+    "data-examples/trial.md", "data-examples/decision.md", "data-examples/observation.md",
+    "data-examples/README.md",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["knot"]
+
+[tool.ruff.format]
+quote-style = "single"

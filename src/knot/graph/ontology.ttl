@@ -1,0 +1,102 @@
+@prefix k: <urn:knot:vocab:> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+k:Entity a rdfs:Class ; rdfs:comment "A referent; a label alone does not establish its identity." .
+k:Person a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "An individual person." .
+k:Group a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "People acting collectively; distinct from an individual." .
+k:Project a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "An organised endeavour with an intended outcome." .
+k:Document a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "A source work, independent of its revisions." .
+k:Book a rdfs:Class ; rdfs:subClassOf k:Document ; rdfs:comment "A book as a work, distinct from notes about it." .
+k:Event a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "An occurrence situated in time or context." .
+k:Decision a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "A recorded choice, not evidence that its intended outcome occurred." .
+k:Action a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "An activity undertaken or proposed; assertion context distinguishes these." .
+k:Outcome a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "A reported result, subject to its assertion's provenance and uncertainty." .
+k:Concept a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "An idea or abstraction usable across different subjects." .
+k:Capability a rdfs:Class ; rdfs:subClassOf k:Concept ; rdfs:comment "An ability; its definition is distinct from an assessment of a person." .
+k:Competency a rdfs:Class ; rdfs:subClassOf k:Capability ; rdfs:comment "A capability defined within a particular framework revision." .
+k:MasteryCriterion a rdfs:Class ; rdfs:subClassOf k:Concept ; rdfs:comment "A source-backed criterion for a competency's mastery level." .
+k:Framework a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "A versioned scheme of definitions; schemes need not be equivalent." .
+k:RoleGrade a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "A role grade used by a framework's requirements." .
+k:Tool a rdfs:Class ; rdfs:subClassOf k:Entity ; rdfs:comment "A tool or reusable software component; not necessarily a project." .
+k:Theme a rdfs:Class ; rdfs:comment "An overlapping navigation category, never an identity merge or access boundary." .
+k:Evidence a rdfs:Class ; rdfs:comment "A source passage used to support a particular assertion." .
+k:Assertion a rdfs:Class ; rdfs:comment "A provenance-bearing claim with independent origin, review and lifecycle." .
+k:KnowledgeKind a rdfs:Class ; rdfs:comment "The nature of a note or assertion, independent of acceptance or truth." .
+k:Note a rdfs:Class ; rdfs:subClassOf k:Document ; rdfs:comment "A logical native free-text source, independent of its immutable revisions and extracted assertions." .
+k:NoteRevision a rdfs:Class ; rdfs:comment "An immutable native note version with exact body and manifest provenance; not an accepted assertion." .
+
+k:Unspecified a k:KnowledgeKind ; rdfs:comment "No current classification is available." .
+k:Statement a k:KnowledgeKind ; rdfs:comment "An attributed statement; not a guarantee of objective fact." .
+k:Observation a k:KnowledgeKind ; rdfs:comment "An attributed report of something observed, with contextual limits." .
+k:Thought a k:KnowledgeKind ; rdfs:comment "A recorded reflection or belief; acceptance preserves this distinction." .
+k:Idea a k:KnowledgeKind ; rdfs:comment "A proposed possibility or course of action, not an achieved outcome." .
+k:Hypothesis a k:KnowledgeKind ; rdfs:comment "A proposition put forward for investigation, not a verified conclusion." .
+k:Question a k:KnowledgeKind ; rdfs:comment "An unresolved enquiry, not an assertion of its possible answers." .
+k:Assessment a k:KnowledgeKind ; rdfs:comment "An attributed judgement about evidence or capability." .
+k:Definition a k:KnowledgeKind ; rdfs:comment "A term, criterion or requirement as defined by its source scheme." .
+
+# No domain/range inference: context must not silently turn suggestions into facts.
+k:workedOn a rdf:Property ; rdfs:comment "The subject worked on the object as described by the source." .
+k:contributedTo a rdf:Property ; rdfs:comment "The source attributes a contribution to an activity or result." .
+k:resultedIn a rdf:Property ; rdfs:comment "The source claims a resulting outcome; causality requires supporting evidence." .
+k:supports a rdf:Property ; rdfs:comment "An attributed assessment that evidence supports a claim or capability." .
+k:demonstrates a rdf:Property ; rdfs:comment "An attributed assessment of demonstrated capability, not an objective certification." .
+k:dependsOn a rdf:Property ; rdfs:comment "A dependency claimed in the given context." .
+k:relatedTo a rdf:Property ; rdfs:comment "A contextual association; neither equivalence nor causation." .
+k:documentedIn a rdf:Property ; rdfs:comment "A reference to a document recording the subject." .
+k:occurredOn a rdf:Property ; rdfs:comment "A source-attributed occurrence date." .
+k:supersedes a rdf:Property ; rdfs:comment "A successor assertion replaces an earlier assertion without erasing it." .
+k:reportedOutcome a rdf:Property ; rdfs:comment "The source reports the object as an outcome of the subject." .
+k:produced a rdf:Property ; rdfs:comment "The source credits the subject with producing the object." .
+k:selected a rdf:Property ; rdfs:comment "The subject chose the object in the recorded context." .
+k:madeDecision a rdf:Property ; rdfs:comment "The source attributes the recorded choice to the subject." .
+k:decisionAbout a rdf:Property ; rdfs:comment "The subject decision concerns the object; this does not identify a decision-maker or establish implementation." .
+k:proposed a rdf:Property ; rdfs:comment "The source attributes a proposal to the subject; it does not establish agreement, implementation or completion." .
+k:implemented a rdf:Property ; rdfs:comment "The source records implementation by the subject." .
+k:enabled a rdf:Property ; rdfs:comment "The source credits the subject with enabling the object; this remains an attributed claim." .
+k:developed a rdf:Property ; rdfs:comment "The source credits the subject with developing the object." .
+k:mentored a rdf:Property ; rdfs:comment "The source reports mentoring by the subject of the object." .
+k:hasMember a rdf:Property ; rdfs:comment "Membership of a group as stated by the source." .
+k:eventCount a rdf:Property ; rdfs:comment "A reported count of events in a specified context." .
+k:used a rdf:Property ; rdfs:comment "The subject used the object as described in the source." .
+k:attributedByAuthorTo a rdf:Property ; rdfs:comment "The author attributes the subject to the object; not independent causal validation." .
+k:hasCompetency a rdf:Property ; rdfs:comment "A framework contains a source-specific competency definition." .
+k:hasCriterion a rdf:Property ; rdfs:comment "A competency has a source-specific mastery criterion." .
+k:requires a rdf:Property ; rdfs:comment "A framework prescribes a mastery criterion for a role grade." .
+k:theme a rdf:Property ; rdfs:comment "An organisational category; shared membership creates no factual relationship." .
+k:knowledgeKind a rdf:Property ; rdfs:comment "The nature of a claim, independent of review status and origin." .
+k:organisedFrom a rdf:Property ; rdfs:comment "The assertion from which an entity's navigation annotations were derived." .
+k:organisationFingerprint a rdf:Property ; rdfs:comment "Digest of the projected record inputs used to detect stale organisation annotations." .
+k:organisationRationale a rdf:Property ; rdfs:comment "An explanation of navigation classification; distinct from assertion rationale." .
+k:inputSha256 a rdf:Property ; rdfs:comment "Digest of the active projected records used to build an organisation graph." .
+k:ThemeMembership a rdfs:Class ; rdfs:comment "A reviewable navigation assignment between an assertion and a theme; distinct from claim acceptance." .
+k:themeMembership a rdf:Property ; rdfs:comment "A topic-membership decision, including rejected or unreviewed suggestions." .
+k:targetAssertion a rdf:Property ; rdfs:comment "The assertion whose topic relevance is being classified." .
+k:reviewState a rdf:Property ; rdfs:comment "Whether a theme review still matches its record and theme definition: Current, Stale or Missing." .
+k:reviewerKind a rdf:Property ; rdfs:comment "Whether the recorded theme reviewer was an Assistant or Human; never inferred from acceptance." .
+k:recordedStatus a rdf:Property ; rdfs:comment "The original theme decision, retained even if stale and no longer effective." .
+k:recordFingerprint a rdf:Property ; rdfs:comment "The projected source-backed record content to which a theme decision applies." .
+k:themeFingerprint a rdf:Property ; rdfs:comment "The identifier, label and scope of the theme reviewed." .
+k:themeReviewsSha256 a rdf:Property ; rdfs:comment "Digest of the theme review register used for this organisation build." .
+
+# Native-note metadata is projected into navigation/history graphs, never claim graphs.
+k:currentRevision a rdf:Property ; rdfs:comment "The committed head of a logical note in the owner-local navigation view." .
+k:previousRevision a rdf:Property ; rdfs:comment "The preceding immutable note version; ordering is independent of clock time." .
+k:associatedEntity a rdf:Property ; rdfs:comment "An author-declared navigation association, projected through accepted identities; not a factual or causal claim." .
+k:linkedNote a rdf:Property ; rdfs:comment "An explicit navigation link to a logical note; does not grant access or imply support for its claims." .
+k:noteLink a rdf:Property ; rdfs:comment "A revision-owned note navigation link with a target and author-written rationale." .
+k:authorClassification a rdf:Property ; rdfs:comment "JSON kind and theme selections supplied during candidate publication; organisation still reviews them separately from the claim." .
+k:noteKind a rdf:Property ; rdfs:comment "Optional classification of a whole note; distinct from an extracted assertion's kind or review status." .
+k:note a rdf:Property ; rdfs:comment "The logical native note to which an immutable revision belongs." .
+k:manifestSha256 a rdf:Property ; rdfs:comment "SHA-256 of the exact canonical note revision manifest." .
+k:manifestPath a rdf:Property ; rdfs:comment "Dataset-relative path of the preserved immutable note manifest." .
+k:createdAt a rdf:Property ; rdfs:comment "The note's recorded creation time, not event time or proof of chronology." .
+k:modifiedAt a rdf:Property ; rdfs:comment "The recorded save time of a note revision; parent links define history." .
+k:author a rdf:Property ; rdfs:comment "Recorded note authorship as text; no canonical identity is inferred from it." .
+k:savingAgent a rdf:Property ; rdfs:comment "The recorded saving application or agent, distinct from authorship and review." .
+k:revisionReason a rdf:Property ; rdfs:comment "An optional author's explanation of a note edit, not automatic assertion correction." .
+k:format a rdf:Property ; rdfs:comment "The saved markup format; native body snapshots retain their original UTF-8 bytes." .
+k:nativeNote a rdf:Property ; rdfs:comment "The logical note of a source revision admitted to a permitted retrieval view." .
+k:noteMetadata a rdf:Property ; rdfs:comment "Verified native revision metadata in a retrieval-only view; not assertion acceptance." .
+k:nativeTextEligible a rdf:Property ; rdfs:comment "Whether this eligible view selects a native revision for text search, independently of historical graph citations." .

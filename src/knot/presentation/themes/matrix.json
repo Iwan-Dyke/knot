@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "name": "Matrix",
+  "color_scheme": "dark",
+  "colors": {
+    "accent": "#00ff41",
+    "background": "#020a02",
+    "text": "#b4ffb4",
+    "muted": "#91b69a",
+    "border": "#245e34",
+    "panel": "#041204",
+    "control": "#061806",
+    "hover": "#0b2810",
+    "checkbox": "#00bd3d",
+    "heading-glow": "#00ff4150",
+    "glow": "#00ff4133",
+    "grid": "#00ff4108",
+    "shadow": "#000000bb",
+    "entity": "#00cc33",
+    "entity-note": "#634681",
+    "entity-note-accent": "#bc91e7",
+    "note": "#234e65",
+    "note-text": "#c3e9ff",
+    "navigation": "#78b7da",
+    "navigation-text": "#a5d7f0",
+    "theme": "#365f48",
+    "theme-text": "#90b8a0",
+    "theme-accepted": "#589873",
+    "accepted": "#00ff41",
+    "unreviewed": "#80b990",
+    "edge-text": "#82b88c"
+  },
+  "fonts": {
+    "ui": "Consolas, 'Cascadia Code', monospace",
+    "body": "system-ui, sans-serif",
+    "graph": "Consolas"
+  }
+}

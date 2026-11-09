@@ -1,0 +1,34 @@
+KNOT licence scope
+==================
+
+The MIT licence in LICENSE applies to the original KNOT application code,
+scripts, build configuration, test code and original technical documentation,
+subject to the exclusions below. The MIT licence text itself is unmodified.
+
+Excluded material
+-----------------
+
+The following material is not part of the Software licensed under LICENSE:
+
+- Everything under data/, including notes, source documents, snapshots,
+  assertions, evidence, reviews, catalogues, metadata and generated views.
+- Historical experiments/ material, which mixed experimental software with
+  private research inputs, outputs and knowledge-derived reports. Those files
+  have been removed from the working tree, not relicensed for redistribution.
+- Personal or work-related knowledge, imported documents, quotations and
+  excerpts from those materials, wherever they appear in the repository,
+  documentation, test fixtures, generated output or historical revisions.
+- Third-party software and assets, which retain their own licences and notices.
+
+No permission to use or redistribute excluded personal, work-related or
+research material is granted by the KNOT software licence. This exclusion
+does not assert ownership of material belonging to another rights holder and
+does not override any separately applicable licence or permission.
+
+Using KNOT does not license a user's dataset under MIT. An exported viewer
+contains both software and dataset content: the applicable software licences
+do not grant rights to its notes, quotations or other knowledge content.
+
+See THIRD_PARTY_NOTICES.txt for the dependency inventory and redistribution
+considerations. This scope statement is not a declaration that the current
+repository or its Git history is suitable for public release.

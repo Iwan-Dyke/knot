@@ -1,0 +1,67 @@
+<aside class="filters" aria-label="Graph filters">
+  <h2>Explore</h2>
+  <div class="node-legend" aria-label="Graph legend">
+    <p><span class="entity-note-symbol" aria-hidden="true">⬭</span> Note in claim relationships</p>
+    <p><span class="note-symbol" aria-hidden="true">■</span> Associated or standalone note</p>
+    <p><span class="subject-symbol" aria-hidden="true">●</span> Subject or source document</p>
+    <p class="hint">Evidence is a quotation cited by a claim. Select a claim connection to read it.</p>
+  </div>
+  <p class="hint">Combine filters to narrow the graph. Choices within each group match any selected value.</p>
+  <button id="reset-filters" type="button">Reset all filters</button>
+  <details open>
+    <summary>Notes and entities</summary>
+    <label class="stacked" for="entity-search">Find by name, alias, type or ID</label>
+    <input id="entity-search" type="search" placeholder="Search notes and entities…" autocomplete="off">
+    <div class="button-row">
+      <button id="show-entities" type="button">Show matches</button>
+      <button id="hide-entities" type="button">Hide non-matches</button>
+    </div>
+    <p id="entity-matches" class="hint" role="status"></p>
+    <div id="entity-list" class="entity-list"></div>
+    <p class="hint">Select a name to read the note or subject and explore its connections.</p>
+  </details>
+  <details open>
+    <summary>Themes</summary>
+    <div id="theme-filters" class="choices"></div>
+    <p class="hint">Includes suggested memberships. Theme review is separate from claim acceptance.</p>
+  </details>
+  <details>
+    <summary>Node types</summary>
+    <div id="type-filters" class="choices"></div>
+  </details>
+  <details>
+    <summary>Claims</summary>
+    <p class="hint">Review and origin filters apply to claims. Accepted-only hides standalone notes and note-navigation links. Notes in accepted claim relationships remain visible.</p>
+    <fieldset><legend>Review status</legend><div id="status-filters"></div></fieldset>
+    <fieldset><legend>Origin</legend><div id="origin-filters"></div></fieldset>
+    <label class="stacked" for="kind-filter">Knowledge kind</label>
+    <select id="kind-filter"><option value="">All kinds</option></select>
+  </details>
+
+</aside>
+<nav class="graph-toolbar" aria-label="Graph controls">
+  <button id="fit-graph" type="button">Fit view</button>
+  <button id="layout-graph" type="button">Rearrange</button>
+  <button id="pause-layout" type="button">Pause layout</button>
+  <label><input id="animate-layout" type="checkbox"> Live layout</label>
+  <label class="spacing-control" for="node-spacing">Spacing
+    <input id="node-spacing" type="range" min="100" max="400" step="25" value="150">
+    <output id="spacing-value" for="node-spacing">1.5×</output>
+  </label>
+  <label><input id="edge-labels" type="checkbox" checked> Edge labels</label>
+  <label><input id="theme-links" type="checkbox" checked> Theme hubs</label>
+  <label><input id="note-links" type="checkbox" checked> Associated notes</label>
+  <span id="layout-state" class="hint" role="status">Arranging…</span>
+  <span id="focus-state" hidden></span>
+  <button id="expand-focus" type="button" hidden>+1 hop</button>
+  <button id="contract-focus" type="button" hidden>−1 hop</button>
+  <button id="reset-hops" type="button" hidden>Reset hops</button>
+  <button id="clear-focus" type="button" hidden>Clear focus</button>
+  <p id="empty-graph" role="status" hidden>No notes or claims match these filters. Reset filters or clear the current focus.</p>
+</nav>
+<!-- inspector -->
+<aside class="inspector" aria-label="Reading and claim evidence">
+  <h2>Reading &amp; evidence</h2>
+  <p class="hint">Select a note to read its text, a subject for associated notes, or a claim connection for its cited evidence.</p>
+  <div id="selection-detail"></div>
+</aside>

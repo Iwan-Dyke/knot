@@ -1,0 +1,1 @@
+"""KNOT ingestion components."""

@@ -1,0 +1,18 @@
+PREFIX k: <urn:knot:vocab:>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT ?assertion ?subject ?relation ?object ?status ?origin ?quote ?snapshot ?rationale
+WHERE {
+  GRAPH <urn:knot:metadata> {
+    ?assertion a k:Assertion ; k:reviewStatus ?status ; k:origin ?origin ;
+      k:lifecycle k:Active ; prov:wasDerivedFrom ?evidence ; k:rationale ?rationale ;
+      k:subjectLabel ?subject ; k:objectLabel ?object .
+    FILTER NOT EXISTS { ?assertion k:recordKind k:FrameworkDefinition }
+    VALUES ?status { k:Accepted k:Unreviewed }
+    ?evidence k:quote ?quote ; k:revision ?revision .
+    ?revision k:snapshotPath ?snapshot .
+  }
+  GRAPH ?assertion { ?s ?relation ?o }
+}
+ORDER BY ?assertion

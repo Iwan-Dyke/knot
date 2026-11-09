@@ -1,0 +1,21 @@
+PREFIX k: <urn:knot:vocab:>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+SELECT ?framework ?competency ?grade ?level ?criteria ?status ?quote ?snapshot
+WHERE {
+  GRAPH ?membership { ?f k:hasCompetency ?skill }
+  GRAPH ?link { ?skill k:hasCriterion ?criterion }
+  GRAPH ?requirement { ?role k:requires ?criterion }
+  GRAPH ?definition { ?criterion skos:definition ?criteria }
+  GRAPH <urn:knot:metadata> {
+    ?f rdfs:label ?framework .
+    ?skill rdfs:label ?competency .
+    ?role k:grade ?grade .
+    ?criterion k:masteryLevel ?level .
+    ?definition k:reviewStatus ?status ; prov:wasDerivedFrom ?evidence .
+    ?evidence k:quote ?quote ; k:revision ?revision .
+    ?revision k:snapshotPath ?snapshot .
+  }
+  FILTER (?grade = "G7")
+} ORDER BY ?framework ?competency

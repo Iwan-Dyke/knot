@@ -1,0 +1,112 @@
+KNOT third-party dependency notices
+==================================
+
+KNOT's own software is MIT-licensed. Dependencies retain their own copyrights,
+licences and required notices; KNOT's LICENSE does not relicense them.
+
+Direct dependency inventory checked on 2026-11-07
+------------------------------------------------
+
+pyoxigraph 0.5.13 (RDF engine)
+  MIT OR Apache-2.0; either offered licence may be used.
+  https://github.com/oxigraph/oxigraph
+  https://github.com/oxigraph/oxigraph/blob/main/LICENSE-MIT
+  https://github.com/oxigraph/oxigraph/blob/main/LICENSE-APACHE
+
+pypdf 6.21.4 (PDF extraction)
+  BSD-3-Clause.
+  https://github.com/py-pdf/pypdf
+  https://github.com/py-pdf/pypdf/blob/main/LICENSE
+
+PyVis 0.3.2 (optional viewer generation)
+  BSD-3-Clause; Copyright (c) 2018, West Health Institute.
+  https://github.com/WestHealth/pyvis
+  https://github.com/WestHealth/pyvis/blob/master/LICENSE_BSD.txt
+
+mcp 2.3.0 (optional MCP interface)
+  MIT.
+  https://github.com/modelcontextprotocol/python-sdk
+  https://github.com/modelcontextprotocol/python-sdk/blob/main/LICENSE
+
+Ruff 0.15.20 (development tooling)
+  MIT, with additional notices for incorporated third-party code.
+  https://github.com/astral-sh/ruff
+  https://github.com/astral-sh/ruff/blob/main/LICENSE
+
+Versions above are declared in pyproject.toml. The installed runtime package
+metadata and available licence files were inspected; upstream licence links
+provide context but moving branches are not immutable release evidence.
+Setuptools is a separate build dependency with its own MIT licence and
+third-party notices: https://github.com/pypa/setuptools/blob/main/LICENSE
+
+Viewer assets and exports
+-------------------------
+
+The Graph/Library exporter embeds vis-network 9.1.2 JavaScript and CSS supplied
+by PyVis 0.3.2 in KNOT's own page shell. The legacy exporter additionally uses
+PyVis template/binding code. vis-network offers MIT or Apache-2.0; these exports
+use the MIT option. Its licence files:
+  https://github.com/visjs/vis-network/blob/v9.1.2/LICENSE-MIT
+  https://github.com/visjs/vis-network/blob/v9.1.2/LICENSE-APACHE-2.0
+
+The exact embedded assets were audited on 2026-11-09. Both exporters include
+complete notices for vis-network and its bundled @babel/runtime-corejs3,
+core-js-pure, regenerator-runtime, tslib, keycharm, component-emitter,
+@egjs/hammerjs, uuid, timsort, vis-util and vis-data code. Additional Alea and
+Levenshtein notices carried by vis-util are retained. The legacy exporter also
+includes PyVis's complete BSD-3-Clause notice. The package versions, source
+comparison, licence choices and asset hashes are recorded in
+docs/viewer-licences.md; the full texts are packaged under
+src/knot/presentation/*-license.txt and displayed in each export's
+Software licences panel.
+
+PyVis also ships Tom Select assets, but KNOT disables both stock select/filter
+menus and does not embed those assets. The legacy exporter strips Bootstrap's
+remote imports; neither exporter includes Bootstrap code. Pandoc is external
+and no Pandoc implementation is embedded. These exclusions apply to KNOT's
+audited export paths, not every possible PyVis configuration.
+
+Retain existing copyright/licence headers. A distributed HTML export must
+also carry the applicable complete licence texts and required third-party
+notices for the code embedded in that export. Merely linking to a licence
+or including this inventory is not a substitute for those requirements.
+Both exporters preserve existing embedded headers and include KNOT's MIT text.
+They reject unreviewed PyVis versions or changed asset contents before writing
+an export. Updating the dependency requires repeating the source/notice audit
+and updating the recorded fingerprints together. This covers the exact embedded
+viewer assets, not an audit of every package installed in a Python environment.
+
+External document converter
+---------------------------
+
+Pandoc is invoked as a separately installed executable for DOCX conversion.
+It is GPL-2.0-or-later, with component exceptions and notices:
+  https://github.com/jgm/pandoc/blob/main/COPYRIGHT
+  https://github.com/jgm/pandoc/blob/main/COPYING.md
+
+KNOT does not copy or link Pandoc's implementation into its Python package.
+Its use as a separate converter does not by itself require licensing KNOT
+under GPL. Redistributing Pandoc, including in a container or installer,
+requires satisfying Pandoc's applicable distribution obligations separately.
+
+ADR 0047 uses the same external-converter boundary for Markdown/Org Library
+snapshot generation. Pandoc remains separately installed, with no Pandoc binary
+or implementation bundled in KNOT. Sanitised HTML fragments use KNOT's own page
+shell. Both export paths carry the software notices described above. No Pandoc
+templates, binaries, filters or implementation files are redistributed by KNOT.
+
+Review boundary
+---------------
+
+The reviewed direct dependency terms do not prevent licensing KNOT's original
+code under MIT. This file is an inventory, not a complete software bill of
+materials or a licence bundle for an entire Python environment. The exact
+generated-viewer bundle is documented above. Before distributing other
+dependencies or native binaries, inspect those artifacts and their bundled
+components and include the required licences, copyright notices and any
+applicable source offers. Repeat the applicable audit when dependency versions,
+embedded assets or distribution formats change.
+
+Installing dependencies from their publishers is distinct from redistributing
+their code in KNOT release artifacts. None of these software licences grants
+rights to personal datasets or imported source documents; see LICENSE_SCOPE.txt.

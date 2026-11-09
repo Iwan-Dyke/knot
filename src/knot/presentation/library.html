@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>KNOT · Graph &amp; Library</title>
+    <style>
+      /* VIS_STYLES */
+    </style>
+    <style>
+      /* KNOT_STYLES */
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main-panel">Skip to content</a>
+    <header class="app-header">
+      <a class="brand" href="#view=graph" aria-label="KNOT home"
+        >❯ KNOT <span>KNOWLEDGE, CONNECTED</span></a
+      >
+      <nav aria-label="Views">
+        <button id="view-graph" aria-pressed="true">Graph</button
+        ><button id="view-library" aria-pressed="false">Library</button>
+      </nav>
+      <div class="snapshot">
+        <span id="snapshot-time"></span>
+        <details>
+          <summary>About this snapshot</summary>
+          <p id="snapshot-info"></p>
+          <p>
+            To see saved changes, run <code>knot browse</code> again and reload this file. All
+            embedded content is readable by anyone holding this file.
+          </p>
+        </details>
+      </div>
+    </header>
+    <div class="mobile-tools">
+      <button id="toggle-navigation" aria-expanded="false" aria-controls="navigation-panel">
+        Navigation</button
+      ><button id="toggle-context" aria-expanded="false" aria-controls="context-panel">
+        Context
+      </button>
+    </div>
+    <main class="workspace">
+      <aside id="navigation-panel" aria-label="Knowledge navigation">
+        <label for="knowledge-search">Search knowledge</label>
+        <input
+          id="knowledge-search"
+          type="search"
+          placeholder="Titles, aliases and note text…"
+          autocomplete="off"
+        />
+        <div class="filter-row">
+          <label
+            >Show
+            <select id="record-filter">
+              <option value="all">Notes &amp; entities</option>
+              <option value="note">Notes</option>
+              <option value="entity">Entities</option>
+            </select></label
+          ><label
+            >Kind
+            <select id="note-kind">
+              <option value="">Any kind</option>
+            </select></label
+          >
+        </div>
+        <div id="library-tree"></div>
+        <details id="recent-group">
+          <summary>Recently viewed</summary>
+          <div id="recent-list"></div>
+          <button id="clear-recents">Clear recent list</button>
+        </details>
+        <div class="section-heading">
+          <h2 id="collection-title">All knowledge</h2>
+          <span id="result-count" role="status" aria-live="polite"></span>
+        </div>
+        <div id="search-results"></div>
+        <div id="result-pages" class="button-row"></div>
+      </aside>
+      <section id="main-panel" tabindex="-1" aria-label="Selected knowledge">
+        <div id="selection-bar">
+          <div>
+            <span id="selection-type" class="eyebrow"></span>
+            <h1 id="selection-title">Explore your knowledge</h1>
+          </div>
+          <div class="button-row">
+            <button id="read-selection">Read in Library</button
+            ><button id="explore-selection">Explore connections</button>
+          </div>
+        </div>
+        <div id="graph-panel">
+          <div class="graph-toolbar">
+            <div class="button-row" role="group" aria-label="Graph mode">
+              <button id="focused-graph" aria-pressed="true">Focused</button>
+              <button id="full-graph" aria-pressed="false">Live network</button>
+            </div>
+            <button id="hop-less">− Hop</button><span id="hop-count">1 hop</span
+            ><button id="hop-more">+ Hop</button><button id="graph-reset">Reset branches</button
+            ><button id="graph-fit">Fit</button
+            ><label><input id="cross-links" type="checkbox" checked /> Cross-links</label>
+          </div>
+          <div id="graph-layout-controls" class="graph-toolbar">
+            <label for="node-spacing">Node spacing</label>
+            <input id="node-spacing" type="range" min="60" max="200" step="10" value="100" />
+            <output id="node-spacing-value" for="node-spacing">100%</output>
+            <button id="layout-toggle" disabled>Live layout</button>
+            <label
+              title="Show note links and associated or standalone notes. Notes in claim relationships remain visible according to the relationship filters."
+            >
+              <input id="note-links" type="checkbox" checked /> Associated notes
+            </label>
+          </div>
+          <details class="graph-filters">
+            <summary>Relationship filters</summary>
+            <div class="filter-row">
+              <label
+                >Review
+                <select id="claim-status">
+                  <option value="all">Accepted &amp; unreviewed</option>
+                  <option value="Accepted">Accepted only</option>
+                  <option value="Unreviewed">Unreviewed only</option>
+                </select></label
+              ><label
+                >Origin
+                <select id="claim-origin">
+                  <option value="all">Explicit &amp; inferred</option>
+                  <option value="Explicit">Explicit</option>
+                  <option value="Inferred">Inferred</option>
+                </select></label
+              ><label
+                >Theme
+                <select id="claim-theme">
+                  <option value="">All themes</option>
+                </select></label
+              ><label
+                >Kind
+                <select id="claim-kind">
+                  <option value="">Any kind</option>
+                </select></label
+              ><label
+                >Node type
+                <select id="graph-type">
+                  <option value="">All types</option>
+                </select></label
+              >
+            </div>
+            <p>
+              Note links and theme membership do not establish accepted claims. Accepted-only hides
+              note navigation; the selected root stays visible.
+            </p>
+          </details>
+          <p id="graph-status" role="status" aria-live="polite"></p>
+          <div
+            id="graph-canvas"
+            role="img"
+            aria-label="Knowledge connections. The Connections list below provides keyboard access."
+          ></div>
+          <div id="graph-empty" class="empty-state">
+            <span class="empty-symbol">⌘</span>
+            <h2>Start with a question or a connection</h2>
+            <p>
+              Find a note, project or concept on the left.<br />Explore its neighbourhood, one step
+              at a time.
+            </p>
+            <button id="start-library">Browse the Library</button>
+          </div>
+          <div class="graph-legend">
+            ▭ Note · ● Entity · → Claim · ⇢ Saved note connection<br />Solid: explicit · Dashed:
+            inferred · Review shown in context
+          </div>
+          <details id="connections-panel" open>
+            <summary>Connections · keyboard exploration</summary>
+            <div id="connection-list"></div>
+            <div id="connection-pages" class="button-row"></div>
+          </details>
+        </div>
+        <article id="reader-panel" hidden></article>
+      </section>
+      <aside id="context-panel" aria-label="Context and evidence">
+        <h2>Context &amp; evidence</h2>
+        <div id="context-content"><p>Select a record to see its sources and connections.</p></div>
+      </aside>
+    </main>
+    <footer>
+      <span id="collection-counts"></span
+      ><span>OFFLINE SNAPSHOT · ONE KNOWLEDGE SYSTEM · READ ONLY</span>
+      <details class="software-notices">
+        <summary>Software licences</summary>
+        <pre>KNOT_NOTICES</pre>
+      </details>
+    </footer>
+    <script id="library-data" type="application/json">
+      KNOT_DATA
+    </script>
+    <script>
+      /* VIS_SCRIPT */
+    </script>
+    <script>
+      /* GRAPH_FILTERS */
+    </script>
+    <script>
+      /* LIBRARY_SCRIPT */
+    </script>
+  </body>
+</html>

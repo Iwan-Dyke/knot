@@ -1,0 +1,33 @@
+/* Midnight: a quiet navy palette with blue and teal accents. */
+:root {
+  color-scheme: dark;
+  --accent: #60a5fa;
+  --background: #111827;
+  --text: #e5e7eb;
+  --muted: #a0aec0;
+  --border: #3b4b63;
+  --panel: #182235;
+  --control: #223047;
+  --hover: #2b3d57;
+  --checkbox: #60a5fa;
+  --heading-glow: #00000000;
+  --glow: #60a5fa18;
+  --grid: #60a5fa08;
+  --shadow: #00000066;
+  --entity: #3b82f6;
+  --entity-note: #8866b7;
+  --entity-note-accent: #c4b5fd;
+  --note: #315c7f;
+  --note-text: #e0f2fe;
+  --navigation: #7dd3fc;
+  --navigation-text: #bae6fd;
+  --theme: #536178;
+  --theme-text: #cbd5e1;
+  --theme-accepted: #94a3b8;
+  --accepted: #34d399;
+  --unreviewed: #a8b1c0;
+  --edge-text: #b8c4d6;
+  --font-ui: system-ui, sans-serif;
+  --font-body: system-ui, sans-serif;
+  --font-graph: sans-serif;
+}

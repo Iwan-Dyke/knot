@@ -1,0 +1,2 @@
+# Preserve exact bytes for content-addressed evidence and recorded output hashes.
+/data/** -text

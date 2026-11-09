@@ -1,0 +1,14 @@
+* Water conservation
+
+Water conservation means using water carefully and reducing unnecessary waste.
+This reading note does not establish that the garden trial achieved a reduction.
+
+** Things to distinguish
+
+- A proposal from a completed action.
+- A measurement from an assumption.
+- A useful connection from an accepted factual claim.
+
+#+begin_src text
+question -> observation -> review
+#+end_src

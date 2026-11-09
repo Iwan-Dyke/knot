@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+knot_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export PYTHONPATH="$knot_root/src${PYTHONPATH:+:$PYTHONPATH}"
+exec "$knot_root/.venv/bin/python" -m knot.interfaces.note_cli "$@"
