@@ -26,13 +26,13 @@ All implementation paths are under `src/knot/`.
 
 | Package | Responsibility |
 | --- | --- |
-| `writing/` | Dataset setup, note revisions, guided authoring, navigation, source projection and Git sync |
+| `writing/` | Dataset setup, note revisions, draft validation/publication, navigation, source projection and Git sync |
 | `curating/` | Source pins, candidate validation/publication, preferred labels and evidence accounts |
 | `reviewing/` | Assertion review events and their replay |
 | `ingestion/` | Archive inventory, conversion and framework extraction |
 | `graph/` | RDF vocabulary/helpers, query loading, organisation and theme review |
 | `retrieval_engine/` | Retrieval coordination, graph/text search, discovery, selection and response budgets |
-| `interfaces/` | CLI adapters, MCP and source access grants |
+| `interfaces/` | CLI adapters, terminal authoring/curation workflows, MCP and source access grants |
 | `presentation/` | Verified offline snapshots, Library/Graph renderers and legacy viewer |
 | `diagnostics/` | Integrity/quality diagnostics and benchmark interfaces |
 | `shared/` | Dataset/configuration resolution, hashing, atomic JSON writes, text extraction and vocabulary values |
@@ -43,6 +43,26 @@ older public paths such as `knot.notes`; it is not an internal dependency layer.
 Retrieval services coordinate engines; shared ranking, evidence and response code
 must not depend on the coordinator merely to reuse a helper. Review replay is
 separate from review writes. The architecture tests enforce selected boundaries.
+
+### Workflow boundaries
+
+`interfaces/console.py` owns terminal prompts. `authoring_cli.py` and `curation_cli.py`
+coordinate interactive drafts through the existing writing and curation APIs.
+`writing/authoring.py` retains draft validation, warnings and resumable publication;
+`writing/curation_workflow.py` retains source selection data and provenance review
+text. Their historical interactive entry points are thin, lazy compatibility
+delegates. This boundary applies to these workflows, not every older CLI in KNOT.
+
+The note CLI dispatches parsed commands to functions. The guided workflow uses a
+small editor table while keeping publication, confirmation and recovery together.
+Optional command modules remain lazily loaded.
+
+`diagnostics/quality.py` runs ordered graph, note, evidence, semantic, association
+and naming passes. `retrieval_engine/search.py` separates text revision selection,
+verification, section extraction and scoring. Private dataclasses carry the shared
+context; pass order, evidence policy, diagnostics and response budgets remain the
+responsibility of the existing coordinators. These are direct function calls,
+not plugin pipelines. See [ADR 0049](../design_decisions/0049-explicit-workflow-and-presentation-boundaries.md).
 
 Synthetic test support lives under `tests/support/`; operational developer scripts
 live under `scripts/`. Private experiment runners and outputs have been retired;
@@ -103,16 +123,19 @@ publishes the completed HTML atomically; this is not a whole-dataset transaction
 | `presentation/library_dom.js` | Literal-text DOM helpers and pagination |
 | `presentation/library_reader.js` | Readable notes, entities, pinned evidence, backlinks and review/history context |
 | `presentation/library_graph.js` | One lazy vis-network instance, branch controls, stable positions and keyboard connection list |
+| `presentation/library_graph_style.js` | Pure manual and Idle style strategies, including complete mode resets and per-frame fades |
 | `presentation/library_layout.js` | Static coordinate spacing and optional network physics; the graph adapter pauses motion when hidden or reading, without changing knowledge |
 | `presentation/library_idle_model.js` | Read-only excerpt selection, filtered tour policy, bounded visit history and a cancellable phase clock |
 | `presentation/library_idle_scene.js` | Session geography, stable incremental placement, easing and bounded neighbourhood unions |
 | `presentation/library_idle.js` | Focus/read/travel sequence, gradual neighbourhood fades, controls and visibility/full-screen handling |
-| `presentation/library.js` | View coordination, selection, navigation history and session-only recents |
+| `presentation/library_navigation.js` | Route transitions, selection, browser history and saved manual context across Idle entry/exit |
+| `presentation/library.js` | DOM composition, search/tree/reader controls and session-only recents |
 
 [ADR 0048](../design_decisions/0048-idle-mode-autonomous-knowledge-exploration.md)
 adds manually started Idle exploration. Graph and Idle share the graph adapter's
 rendering function and one vis-network instance per window. Idle has its own traversal
-and layout state; the shell saves the manual context on entry and restores it on exit.
+and layout state; the navigation controller saves manual context through shell
+callbacks on entry and restores it on exit.
 Automatic steps bypass ordinary history and recents. The shared model remains immutable.
 
 Browser modules consume the immutable exported model and never write authoritative

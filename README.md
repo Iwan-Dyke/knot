@@ -10,7 +10,7 @@ The core workflows run locally without an LLM or hosted service.
 
 ## Project status
 
-KNOT v0.1.0 is an initial MIT-licensed release. Keep your
+KNOT v0.1.1 is an early MIT-licensed release. Keep your
 dataset outside the application checkout and select it using the commands below.
 The [clean code export](docs/release.md#prepare-a-clean-code-checkout) command can
 prepare application files for a new repository without datasets or Git history.

@@ -103,6 +103,19 @@ current files does not sanitise earlier commits or remote URLs.
 
 ## Verification before publication
 
+The v0.1.1 maintenance update separates terminal workflows, navigation and graph
+styling, and makes audit/retrieval stages explicit. Unsupported CLI dataset-prefix
+combinations now produce an argument error rather than reaching an unrelated
+handler. Existing knowledge formats, provenance and access policies are unchanged;
+see [ADR 0049](../design_decisions/0049-explicit-workflow-and-presentation-boundaries.md).
+The refactored source passed 531 tests, lint/format checks and the Graph/Library
+browser suites in Chromium and Firefox, including eight accelerated hours of Idle
+playback. Frozen retrieval responses and six complete synthetic audit reports
+match their pre-refactor results. Accelerated playback is not a real-time memory
+soak test. The v0.1.1 wheel and source archive include the new modules and only
+declared public examples; package metadata, the packaged CLI and the MCP version
+were checked without installing new dependencies.
+
 The v0.1.0 code export passed 528 tests, lint and formatting, 337 local documentation
 links, Graph/Library checks in Chromium and Firefox, and legacy viewer browser
 checks. Wheel and source archives excluded private data and runtime artifacts;

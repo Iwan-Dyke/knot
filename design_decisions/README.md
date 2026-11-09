@@ -16,7 +16,7 @@ operate them. The [release checklist](../docs/release.md) tracks pending deliver
 | Authoring and AI access | [0021](0021-scoped-local-mcp-server.md), [0025](0025-owner-local-note-cli.md), [0032](0032-guided-zettelkasten-authoring.md), [0033](0033-owner-mcp-authoring-and-runtime-diagnostics.md) |
 | Curation and naming | [0027](0027-source-preserving-knowledge-curation.md), [0028](0028-meaningful-entity-names-and-value-presentation.md), [0030](0030-continuous-knowledge-curation.md), [0046](0046-guided-source-backed-curation.md) |
 | Viewer and navigation | [0047](0047-unified-knowledge-library-and-graph-exploration.md), [0026](0026-live-offline-graph-filters.md), [0035](0035-notes-in-the-unified-graph.md), [0044](0044-extensible-visual-and-knowledge-themes.md), [0045](0045-persistent-visual-themes-and-css-palettes.md) |
-| Implemented module boundaries | [0036](0036-modular-retrieval-and-shared-boundaries.md), [0037](0037-feature-packages-for-the-whole-application.md) |
+| Implemented module boundaries | [0036](0036-modular-retrieval-and-shared-boundaries.md), [0037](0037-feature-packages-for-the-whole-application.md), [0049](0049-explicit-workflow-and-presentation-boundaries.md) |
 
 ## Status and history
 
@@ -44,6 +44,7 @@ Important relationships:
 - 0033 extends read-only MCP with separately enabled owner writes and reviews.
 - 0036 and 0037 implement bounded refactors; the broader proposal in 0024 remains open.
   0037 supersedes 0036's temporary top-level layout, retaining its dependency rules.
+  0049 separates terminal workflows and presentation state within those packages.
 - 0047 makes Graph/Library the default viewer, retaining 0026/0035's earlier viewer
   through `--legacy` and reusing its knowledge/filtering contracts.
 
@@ -106,6 +107,7 @@ not current command references; use the linked guides for today's behaviour.
 | [0046](0046-guided-source-backed-curation.md) | Guide manual curation through source selection and existing authoring | Accepted | Implemented |
 | [0047](0047-unified-knowledge-library-and-graph-exploration.md) | Explore one knowledge system through a library and focused graph | Accepted | Implemented browsing release; authoring deferred |
 | [0048](0048-idle-mode-autonomous-knowledge-exploration.md) | Cinematic exploration of existing knowledge in Idle | Accepted | Implemented; extended performance and accessibility validation pending |
+| [0049](0049-explicit-workflow-and-presentation-boundaries.md) | Separate terminal workflows, navigation, styles and ordered audit/retrieval stages | Accepted | Implemented |
 
 ## Add or revise a decision
 

@@ -66,8 +66,13 @@ Reuse the actual implementation:
 | `library_idle_model.js` | Content descriptors, chain traversal, components and a cancellable phase clock. |
 | `library_idle_scene.js` | Easing, incremental geography and neighbourhood unions; no authoritative graph data. |
 | `library_idle.js` | Focus, reading, travel and restart sequence; controls and exact source handoff. |
-| `library_graph.js` | One shared renderer, incremental DataSet changes, camera transforms, Idle styling and per-record fades. |
-| `library.js` | View switching, browser history and saved manual context. Automatic visits bypass normal navigation. |
+| `library_graph.js` | One shared renderer, incremental DataSet changes and camera transforms. |
+| `library_graph_style.js` | Manual and Idle style strategies, including per-record fades. |
+| `library_navigation.js` | View switching, browser history and saved manual context. Automatic visits bypass normal navigation. |
+| `library.js` | DOM composition and callbacks for capturing/restoring manual controls and reader state. |
+
+[ADR 0049](0049-explicit-workflow-and-presentation-boundaries.md) records the
+navigation and styling extraction without changing this presentation contract.
 
 No new framework, service, AI dependency, relationship system, ontology, persisted
 layout or second knowledge store is introduced.
