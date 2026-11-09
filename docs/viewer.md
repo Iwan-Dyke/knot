@@ -16,8 +16,8 @@ knot view example
 knot view --data-root /path/to/dataset --output /tmp/knowledge.html --visual-theme paper
 ```
 
-`knot view` and `just visualise` generate and open one browser tab containing both
-views. The **Graph** and **Library** buttons switch within that tab. Use `--no-open`
+`knot view` and `just visualise` generate and open one browser tab containing all three
+views. The **Library**, **Graph** and **Idle** buttons switch within that tab. Use `--no-open`
 to generate without launching a browser. `knot browse` and `just browse` retain
 export-only defaults, with `--open` available explicitly.
 
@@ -134,6 +134,64 @@ theme and node type. Search and Library collections help find records independen
 of graph visibility. **Reset branches** resets focused expansion and placement;
 it does not clear relationship filters or the spacing/motion choice. To restore
 filtered connections, clear the relevant controls explicitly.
+
+## Idle Mode
+
+Choose **Idle**, then **Start**, for a cinematic tour of the current snapshot.
+The nearly black canvas uses fine emerald connections and softly glowing nodes.
+It starts from your selection when eligible, otherwise chooses a suitable starting
+point. It needs no AI service or internet connection and never changes knowledge.
+
+A node brightens and remains the focus for **10 seconds**. Its existing curated or
+authored excerpt then fades into a reading panel for **10 seconds**, with attribution
+and qualifications. After the panel fades away, the camera follows a real connecting
+edge over **24 seconds**. Neighbours around the destination gradually appear while
+old peripheral nodes fade. Fades are additional to the reading and travel periods.
+Nodes without suitable text skip the reading stage and remain part of the journey.
+
+The tour follows saved links, declared associations and eligible claims in either
+direction, preserving original arrows and review/origin labels. At a fork it chooses
+one branch. It continues until the path ends or would revisit a node in that chain,
+then fades into another starting point without drawing a fictional connection.
+There is no fixed step limit. Small collections pause longer before repeating;
+a singleton completes its focus/reading sequence and then stays still.
+
+Positions persist throughout the Idle session, including revisits. The camera moves
+at a fixed zoom without force simulations or fitting the whole graph. A settled
+neighbourhood contains at most 20 records/40 connections; the union during travel
+contains at most 40/80. Omission counts describe capped context. Some geography can
+remain offscreen, and long labels or dense cross-links can still overlap.
+
+- **Start / Pause / Resume:** control the tour explicitly. Pause freezes the current
+  camera position and fades; Resume continues from that point. Mouse movement does
+  not stop it. Space also toggles playback outside interactive controls.
+- **Depth:** choose one hop (default) or two.
+- **Focus / Read / Travel:** choose the observation time, reading time and camera
+  travel duration separately. Focus can be as short as 3 seconds; Read includes a
+  15-second option. Changes apply when that phase next starts.
+- **Exploration filters:** start with your Graph filters. Changes here affect only
+  Idle and restart its focus sequence. Accepted-only hides authored navigation; it
+  does not mark source notes as accepted claims.
+- **Pause and read source:** available in the knowledge panel, opens the exact
+  displayed revision in Library. Focusing the panel also pauses the tour.
+- **Open another window:** open the same snapshot with the current Idle filters and
+  press Start there. Move it to your second monitor, then choose **Full screen**.
+  A browser may open a detachable tab. Each window loads its own copy of the snapshot.
+- **Exit Idle:** restore the previous selection, reading revision, filters, layout,
+  scroll and navigation context. Browser Back does the same; Forward opens Idle ready.
+  Escape leaves full screen first, then exits Idle outside full screen.
+
+A visible window keeps exploring while you work elsewhere. Hidden/minimised windows
+freeze the sequence and resume its remaining time if you left it running. Reduced
+motion retains focus and reading but replaces travel and fades with discrete updates.
+Automatic visits do not add history, Library recents or dataset records. Full-screen
+denial leaves the ordinary window usable; keeping the operating system awake is
+outside this feature. Coordinates are released on Exit; a new session can have a
+different geography.
+
+Idle uses the loaded snapshot until you regenerate and reload it. Full screen and
+filters do not redact embedded knowledge or add access controls. Run `knot view`
+again after updating the application to generate a page with the current Idle controls.
 
 ## Snapshot freshness and troubleshooting
 

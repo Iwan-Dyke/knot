@@ -14,6 +14,7 @@ flowchart LR
     Q --> V[Verified offline snapshot]
     V --> G[Graph: focused or full network]
     V --> L[Knowledge Library]
+    V --> I[Ambient Idle exploration]
 ```
 
 This diagram shows data flow, not every Python import. The complete storage
@@ -103,7 +104,16 @@ publishes the completed HTML atomically; this is not a whole-dataset transaction
 | `presentation/library_reader.js` | Readable notes, entities, pinned evidence, backlinks and review/history context |
 | `presentation/library_graph.js` | One lazy vis-network instance, branch controls, stable positions and keyboard connection list |
 | `presentation/library_layout.js` | Static coordinate spacing and optional network physics; the graph adapter pauses motion when hidden or reading, without changing knowledge |
+| `presentation/library_idle_model.js` | Read-only excerpt selection, filtered tour policy, bounded visit history and a cancellable phase clock |
+| `presentation/library_idle_scene.js` | Session geography, stable incremental placement, easing and bounded neighbourhood unions |
+| `presentation/library_idle.js` | Focus/read/travel sequence, gradual neighbourhood fades, controls and visibility/full-screen handling |
 | `presentation/library.js` | View coordination, selection, navigation history and session-only recents |
+
+[ADR 0048](../design_decisions/0048-idle-mode-autonomous-knowledge-exploration.md)
+adds manually started Idle exploration. Graph and Idle share the graph adapter's
+rendering function and one vis-network instance per window. Idle has its own traversal
+and layout state; the shell saves the manual context on entry and restores it on exit.
+Automatic steps bypass ordinary history and recents. The shared model remains immutable.
 
 Browser modules consume the immutable exported model and never write authoritative
 files. No server, database, framework, ontology or parallel relationship store is

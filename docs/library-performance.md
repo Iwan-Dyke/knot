@@ -95,3 +95,56 @@ mobile performance promise, and full-network layout is outside the bounded targe
 Record new runs when the model, renderer or reference environment changes. Keep raw
 results outside the dataset. If payload/startup costs become unacceptable, revisit
 optional local serving rather than adding another authoritative store.
+
+## Idle validation
+
+Idle renders at most 20 records/40 connections at rest and a 40/80 union during
+travel. Coordinates persist for all discovered records, bounded by the snapshot's
+record count, and are released on Exit. The measurements above predate Idle and do
+not establish animation or long-session performance.
+
+The model checks exercise 10,000 synthetic selections, long chains/cycles, content-free
+bridges, provenance selection and retained geography after more than 200 discoveries.
+Another 6,000 steps across 12 reproducible generated graphs verify filtered adjacency,
+parallel edges, self-links, repeated labels, missing endpoints, chain termination and
+input immutability. Content checks retain evidence qualifications, skip missing source
+records and exclude summaries outside the chosen content filters.
+
+The phase clock checks pause/resume progress and remaining reading time, duplicate
+starts, cancelled arrivals, rendering errors, delayed frames, reduced-motion completion
+and drawing time within phase timing. These fast checks run through `just check`
+when Node.js is available; a missing Node.js executable is reported as a skipped test.
+
+The browser suite checks actual vis-network camera coordinates along an existing
+edge, unchanged world coordinates, fixed zoom, progressive node/edge opacity and
+screenshots at focus, reading, mid-travel and arrival. It exercises several connected
+steps, a missing-excerpt bridge, a cycle, a disconnected region and a dense hub.
+It also retains accelerated repeated-visit, visibility, reduced-motion, empty/singleton,
+full-screen, separate-window and manual-context restoration checks. Outbound HTTP is
+blocked and reported, and the embedded model is compared before and after traversal.
+
+For Idle changes, run `just check`, `just test-idle chromium` and `just test-idle firefox`.
+The browser recipes require the optional external Playwright installation described
+above and run `node scripts/test_library_browser.cjs BROWSER --idle-only`.
+`scripts/test_idle_browser.cjs` supplies the cinematic canvas checks; it is loaded by
+that runner. These synthetic fixtures are browser projections, never authoritative
+knowledge records. Screenshots are written to the runner's temporary artifact folder.
+
+The lifecycle cases cover depth changes during a region fade, filtering all records
+out during travel and recovering, hidden-window suspension mid-journey, reduced motion
+while paused, keyboard source inspection, Space/Escape and full-screen denial. Exit,
+browser Back and explicit view switching restore manual coordinates and selection
+without allowing cancelled phases to overwrite them. Repeated entry reuses one canvas
+and renderer. An eight-hour accelerated run in reduced-motion mode checks that actual
+displayed notes continue changing while DOM elements, history, recents and coordinate
+caches remain bounded; this is a functional endurance check, not a heap benchmark.
+
+On 2026-11-09, `just check` passed all 528 tests. The expanded Idle browser suite
+passed in Chromium and Firefox, including canvas movement, progressive label pixels,
+stable world coordinates, interrupted transitions and eight accelerated hours in each
+browser. The full Chromium Library suite also passed before this test expansion.
+These are functional results, not frame-rate or memory benchmarks.
+
+The real-time eight-hour soak, reference-machine frame/heap budgets and physical
+second-monitor/screen-reader assessment in ADR 0048 remain outstanding. Accelerated
+checks do not establish leak freedom, sustained animated frame rate or those performance targets.

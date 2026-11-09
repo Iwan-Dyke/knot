@@ -105,6 +105,7 @@ not current command references; use the linked guides for today's behaviour.
 | [0045](0045-persistent-visual-themes-and-css-palettes.md) | Save visual preferences and discover CSS palettes | Accepted | Implemented |
 | [0046](0046-guided-source-backed-curation.md) | Guide manual curation through source selection and existing authoring | Accepted | Implemented |
 | [0047](0047-unified-knowledge-library-and-graph-exploration.md) | Explore one knowledge system through a library and focused graph | Accepted | Implemented browsing release; authoring deferred |
+| [0048](0048-idle-mode-autonomous-knowledge-exploration.md) | Cinematic exploration of existing knowledge in Idle | Accepted | Implemented; extended performance and accessibility validation pending |
 
 ## Add or revise a decision
 

@@ -106,6 +106,14 @@ viewer remains available through `knot view --legacy`. Use `--no-open` to export
 without launching a browser; `knot browse` also remains an export-only entry point.
 See the [viewer guide](docs/viewer.md).
 
+Choose **Idle**, then **Start**, to let KNOT travel through existing connections
+and reveal excerpts from your notes. It observes each node, presents its knowledge,
+then slowly follows a connection while the surrounding map unfolds. Adjust focus,
+reading and travel times, choose one or two hops,
+or open it in another window for a second monitor. **Full screen** hides browser
+chrome; **Exit Idle** restores your previous reading or graph context. Idle works
+offline and never generates or changes knowledge. See [Idle Mode](docs/viewer.md#idle-mode).
+
 Try the same public synthetic examples used by the browser tests:
 
 ```sh
