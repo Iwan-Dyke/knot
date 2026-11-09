@@ -244,7 +244,7 @@ const LibraryModel = (() => {
   function route(hash, initialRecord = null) {
     const params = new URLSearchParams(hash.replace(/^#/, ''));
     return {
-      view: params.get('view') === 'library' ? 'library' : 'graph',
+      view: ['library', 'idle'].includes(params.get('view')) ? params.get('view') : 'graph',
       id: hash ? params.get('id') : initialRecord,
       revision: params.get('revision'),
     };

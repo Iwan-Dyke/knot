@@ -8,6 +8,8 @@ const LibraryGraph = (() => {
     let network = null,
       motion,
       active = false,
+      ambient = false,
+      manualScene = true,
       layouts = {},
       nodeSet,
       edgeSet,
@@ -30,7 +32,7 @@ const LibraryGraph = (() => {
       restoredPositions = false;
     const liveLayout = () => (state.full ? state.live : state.focusedLive);
     const savePositions = () => {
-      if (network) Object.assign(positions, network.getPositions());
+      if (network && !ambient && manualScene) Object.assign(positions, network.getPositions());
     };
     function rememberLayout() {
       savePositions();
@@ -38,7 +40,10 @@ const LibraryGraph = (() => {
         seed: state.seed,
         spacing: state.spacing,
         positions: structuredClone(positions),
-        camera: network ? { position: network.getViewPosition(), scale: network.getScale() } : null,
+        camera:
+          network && manualScene
+            ? { position: network.getViewPosition(), scale: network.getScale() }
+            : state.camera || null,
       };
     }
     function getState() {
@@ -47,7 +52,10 @@ const LibraryGraph = (() => {
         ...structuredClone(state),
         layouts: structuredClone(layouts),
         positions: { ...positions },
-        camera: network ? { position: network.getViewPosition(), scale: network.getScale() } : null,
+        camera:
+          network && manualScene
+            ? { position: network.getViewPosition(), scale: network.getScale() }
+            : state.camera || null,
       };
     }
     function setState(next) {
@@ -72,7 +80,8 @@ const LibraryGraph = (() => {
       syncMotion();
     }
     function syncMotion() {
-      const enabled = active && !document.hidden && liveLayout() && visible?.nodes.length > 1;
+      const enabled =
+        active && !ambient && !document.hidden && liveLayout() && visible?.nodes.length > 1;
       motion?.update(!!enabled, state.spacing, !state.full);
       $('node-spacing-value').textContent = `${state.spacing}%`;
       $('node-spacing').setAttribute('aria-valuetext', `${state.spacing}%`);
@@ -158,86 +167,184 @@ const LibraryGraph = (() => {
             }
           });
         }
-        const visualNodes = visible.nodes.map((n) => ({
-          id: n.id,
-          label: n.title + '\n' + (n.role === 'note' ? 'Note' : n.entityTypes.join(' · ')),
-          shape: n.role === 'note' ? 'box' : 'dot',
-          size: 14,
-          ...positions[n.id],
-          color:
-            n.role === 'note' ? colors.note : { background: colors.entity, border: colors.accent },
-          font: {
-            color: n.role === 'note' ? colors['note-text'] : colors.text,
-            face: index.model.palette.fonts.graph,
-            size: 13,
-          },
-          widthConstraint: { maximum: 240 },
-          margin: 10,
-          borderWidth: n.id === selected() ? 3 : 1,
-        }));
-        const visualEdges = allEdges.map((e) => ({
-          id: e.id,
-          from: e.from,
-          to: e.to,
-          label: e.label,
-          arrows: 'to',
-          color: {
-            color: e.navigation
-              ? colors.navigation
-              : e.status === 'Accepted'
-                ? colors.accepted
-                : colors.unreviewed,
-          },
-          dashes: e.navigation ? [6, 4] : e.origin === 'Inferred',
-          width: e.status === 'Accepted' ? 2 : 1,
-          font: { color: colors['edge-text'], size: 10, strokeWidth: 0, align: 'middle' },
-          smooth: { enabled: true, type: 'curvedCW', roundness: 0.12 },
-        }));
-        if (!network) {
-          nodeSet = new vis.DataSet();
-          edgeSet = new vis.DataSet();
-          network = new vis.Network(
-            $('graph-canvas'),
-            { nodes: nodeSet, edges: edgeSet },
-            {
-              physics: false,
-              layout: { improvedLayout: false },
-              interaction: {
-                hover: false,
-                keyboard: { enabled: true, bindToWindow: false },
-                navigationButtons: true,
-              },
-              nodes: { chosen: true },
-              edges: { selectionWidth: 2 },
-            },
-          );
-          motion = LibraryLayout.create(network);
-          network.on('click', (params) => {
-            if (params.nodes.length) navigate({ view: 'graph', id: params.nodes[0] });
-          });
-          network.on('doubleClick', (params) => {
-            if (params.nodes.length) focus(params.nodes[0]);
-          });
-          network.on('dragEnd', () => {
-            savePositions();
-            changed();
-          });
-          network.on('zoom', () => changed());
-        }
-        const wanted = new Set(visualNodes.map((n) => n.id));
-        nodeSet.remove(nodeSet.getIds().filter((id) => !wanted.has(id)));
-        nodeSet.update(visualNodes);
-        const wantedEdges = new Set(visualEdges.map((e) => e.id));
-        edgeSet.remove(edgeSet.getIds().filter((id) => !wantedEdges.has(id)));
-        edgeSet.update(visualEdges);
-        if (selected() && wanted.has(selected())) network.selectNodes([selected()], false);
+        renderNetwork({ ...visible, edges: allEdges }, positions, selected());
         if (state.camera) network.moveTo({ ...state.camera, animation: false });
         else if (camera && !refocus) network.moveTo({ ...camera, animation: false });
         else network.fit({ animation: false });
         state.camera = null;
       }
+      if (!visible.nodes.length && network && !manualScene) {
+        nodeSet.clear();
+        edgeSet.clear();
+      }
+      manualScene = true;
       sync();
       connections();
+    }
+    function renderNetwork(scene, layout, id, highlighted = null) {
+      const visualNodes = scene.nodes.map((n) => ({
+        id: n.id,
+        label: ambient
+          ? n.title
+          : n.title + '\n' + (n.role === 'note' ? 'Note' : n.entityTypes.join(' · ')),
+        shape: ambient ? 'dot' : n.role === 'note' ? 'box' : 'dot',
+        size: 14,
+        fixed: ambient,
+        chosen: !ambient,
+        opacity: 1,
+        shadow: { enabled: false },
+        ...layout[n.id],
+        color:
+          n.role === 'note' ? colors.note : { background: colors.entity, border: colors.accent },
+        font: {
+          color: n.role === 'note' ? colors['note-text'] : colors.text,
+          face: index.model.palette.fonts.graph,
+          size: ambient ? 19 : 13,
+        },
+        widthConstraint: { maximum: 240 },
+        margin: 10,
+        borderWidth: n.id === id ? (ambient ? 5 : 3) : 1,
+        ...(ambient ? idleNode(n.id, n.opacity ?? 1, n.id === id ? 1 : 0) : {}),
+      }));
+      const visualEdges = scene.edges.map((e) => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        label: ambient && e.id !== highlighted ? ' ' : e.label,
+        arrows: { to: { enabled: true, scaleFactor: ambient ? 0.45 : 1 } },
+        chosen: !ambient,
+        color: {
+          color: ambient
+            ? '#42bb87'
+            : e.navigation
+              ? colors.navigation
+              : e.status === 'Accepted'
+                ? colors.accepted
+                : colors.unreviewed,
+          opacity: ambient ? (e.opacity ?? 1) * (e.id === highlighted ? 0.95 : 0.5) : 1,
+        },
+        dashes: e.navigation ? [6, 4] : e.origin === 'Inferred',
+        width: ambient ? (e.id === highlighted ? 1.8 : 0.8) : e.status === 'Accepted' ? 2 : 1,
+        font: {
+          color: ambient ? '#a1d9bd' : colors['edge-text'],
+          size: ambient ? 13 : 10,
+          strokeWidth: 0,
+          align: 'middle',
+        },
+        smooth: { enabled: !ambient, type: 'curvedCW', roundness: 0.12 },
+      }));
+      if (!network) {
+        nodeSet = new vis.DataSet();
+        edgeSet = new vis.DataSet();
+        network = new vis.Network(
+          $('graph-canvas'),
+          { nodes: nodeSet, edges: edgeSet },
+          {
+            physics: false,
+            layout: { improvedLayout: false },
+            interaction: {
+              hover: false,
+              keyboard: { enabled: true, bindToWindow: false },
+              navigationButtons: true,
+            },
+            nodes: { chosen: true },
+            edges: { selectionWidth: 2 },
+          },
+        );
+        motion = LibraryLayout.create(network);
+        network.on('click', (params) => {
+          if (!ambient && params.nodes.length) navigate({ view: 'graph', id: params.nodes[0] });
+        });
+        network.on('doubleClick', (params) => {
+          if (!ambient && params.nodes.length) focus(params.nodes[0]);
+        });
+        network.on('dragEnd', () => {
+          if (ambient) return;
+          savePositions();
+          changed();
+        });
+        network.on('zoom', () => {
+          if (!ambient) changed();
+        });
+      }
+      const wanted = new Set(visualNodes.map((n) => n.id));
+      nodeSet.remove(nodeSet.getIds().filter((id) => !wanted.has(id)));
+      nodeSet.update(visualNodes);
+      const wantedEdges = new Set(visualEdges.map((e) => e.id));
+      edgeSet.remove(edgeSet.getIds().filter((id) => !wantedEdges.has(id)));
+      edgeSet.update(visualEdges);
+      if (ambient) network.unselectAll();
+      else if (id && wanted.has(id)) network.selectNodes([id], false);
+    }
+    function idleNode(id, opacity, strength) {
+      return {
+        id,
+        opacity,
+        size: 6 + strength * 4,
+        borderWidth: 1 + strength,
+        color: {
+          background: `rgb(${Math.round(32 + strength * 124)},${Math.round(89 + strength * 154)},${Math.round(63 + strength * 136)})`,
+          border: '#69dca2',
+        },
+        font: {
+          color: `rgba(206,233,219,${opacity})`,
+          face: 'system-ui, sans-serif',
+          size: 17 + strength * 2,
+          strokeWidth: 0,
+        },
+        shadow: {
+          enabled: true,
+          color: `rgba(66,225,151,${(0.18 + strength * 0.25) * opacity})`,
+          size: 12 + strength * 16,
+          x: 0,
+          y: 0,
+        },
+      };
+    }
+    function idleFrame(scene, opacity, focus, highlighted = null) {
+      nodeSet.update(scene.nodes.map((n) => idleNode(n.id, opacity(n.id), focus(n.id))));
+      edgeSet.update(
+        scene.edges.map((e) => ({
+          id: e.id,
+          color: {
+            color: '#42bb87',
+            opacity: Math.min(opacity(e.from), opacity(e.to)) * (e.id === highlighted ? 0.95 : 0.5),
+          },
+        })),
+      );
+    }
+    function showIdle(scene, layout, id, highlighted) {
+      ambient = true;
+      // Returning to Library need not redraw Graph yet; never save these as manual coordinates.
+      manualScene = false;
+      setActive(false);
+      $('graph-canvas').hidden = false;
+      renderNetwork(scene, layout, id, highlighted);
+      motion.update(false);
+      network.setOptions({
+        interaction: {
+          dragNodes: false,
+          dragView: false,
+          zoomView: false,
+          keyboard: { enabled: false },
+          navigationButtons: false,
+        },
+      });
+      network.redraw();
+      return network;
+    }
+    function leaveIdle() {
+      ambient = false;
+      if (network)
+        network.setOptions({
+          interaction: {
+            dragNodes: true,
+            dragView: true,
+            zoomView: true,
+            keyboard: { enabled: true, bindToWindow: false },
+            navigationButtons: true,
+          },
+        });
     }
     function connections() {
       const parent = $('connection-list');
@@ -413,6 +520,9 @@ const LibraryGraph = (() => {
     });
     return {
       draw,
+      showIdle,
+      idleFrame,
+      leaveIdle,
       setActive,
       focus,
       getState,

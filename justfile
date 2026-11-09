@@ -24,6 +24,10 @@ format-check:
 
 check: lint format-check test
 
+# Requires the optional Playwright installation used by the viewer browser tests.
+test-idle browser="chromium":
+    node scripts/test_library_browser.cjs {{quote(browser)}} --idle-only
+
 migrate:
     PYTHONPATH=src .venv/bin/python -m knot.ingestion.migrate
     PYTHONPATH=src .venv/bin/python -m knot.graph.knowledge build

@@ -41,10 +41,13 @@ def render_snapshot(model, *, visual_theme='matrix'):
             (ASSETS / name).read_text()
             for name in (
                 'library_model.js',
+                'library_idle_model.js',
+                'library_idle_scene.js',
                 'library_dom.js',
                 'library_reader.js',
                 'library_layout.js',
                 'library_graph.js',
+                'library_idle.js',
                 'library.js',
             )
         ),

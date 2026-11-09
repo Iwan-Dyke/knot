@@ -12,6 +12,9 @@
     page = 0,
     collection = { type: 'all' },
     collectionTitle = 'All knowledge';
+  let idle,
+    idleReturn = null,
+    idleFocus = null;
   let serial = 0,
     restoring = false,
     queryTimer,
@@ -22,6 +25,7 @@
     navigate,
     selected: () => selection.id,
     changed: () => {
+      if (idle?.active) return;
       save();
       reader.renderContext($('context-content'), selection.id, graph.filters, selection.revision);
     },
@@ -43,20 +47,48 @@
     };
   }
   function save() {
-    if (restoring) return;
+    if (restoring || selection.view === 'idle') return;
     const key = history.state?.knotKey;
     if (key !== undefined) sessions.set(key, state());
   }
   function navigate(route, { focus = false } = {}) {
+    if (route.view === 'idle' && selection.view === 'idle') return;
+    if (idle?.active && route.view && route.view !== 'idle') {
+      const saved = idleReturn;
+      idle.leave();
+      if (saved) applyState(saved);
+      idleReturn = null;
+      selection = {
+        view: route.view,
+        id: route.id ?? saved?.selection.id ?? null,
+        revision:
+          route.revision ?? (route.view === 'library' ? saved?.selection.revision : null) ?? null,
+      };
+      history.replaceState(
+        { knotKey: ++serial, fingerprint: model.manifest.fingerprint },
+        '',
+        LibraryModel.hash(selection),
+      );
+      readerKey = '';
+      render();
+      save();
+      (idleFocus?.isConnected ? idleFocus : $('main-panel')).focus({ preventScroll: true });
+      return;
+    }
     save();
+    if (route.view === 'idle' && selection.view !== 'idle') {
+      idleReturn = { ...state(), recent: [...recent] };
+      idleFocus = document.activeElement;
+    }
     const previous = selection;
+    const returnKey = route.view === 'idle' ? history.state?.knotKey : undefined;
     selection = {
       view: route.view || selection.view,
       id: route.id ?? null,
       revision: route.revision || null,
     };
     history.pushState(
-      { knotKey: ++serial, fingerprint: model.manifest.fingerprint },
+      { knotKey: ++serial, fingerprint: model.manifest.fingerprint, idleReturnKey: returnKey },
       '',
       LibraryModel.hash(selection),
     );
@@ -84,28 +116,56 @@
     if (previous.id !== selection.id) scrolls[selection.view] = 0;
     render();
     save();
-    $('selection-title').tabIndex = -1;
-    $('selection-title').focus({ preventScroll: true });
+    const focusTarget = selection.view === 'idle' ? $('idle-toggle') : $('selection-title');
+    focusTarget.tabIndex = selection.view === 'idle' ? 0 : -1;
+    focusTarget.focus({ preventScroll: true });
+  }
+  function applyState(saved) {
+    selection = saved.selection;
+    graph.setState(saved.graph);
+    $('knowledge-search').value = saved.query;
+    $('record-filter').value = saved.role;
+    $('note-kind').value = saved.kind;
+    collection = saved.collection;
+    collectionTitle = saved.collectionTitle;
+    page = saved.page;
+    scrolls = saved.scrolls;
+    for (const d of $('library-tree').querySelectorAll('details'))
+      d.open = saved.branches.includes(d.dataset.branch);
+    if (saved.recent) recent = [...saved.recent];
+  }
+  function exitIdle() {
+    if (!idle?.active) return;
+    if (history.state?.idleReturnKey !== undefined && sessions.has(history.state.idleReturnKey))
+      history.back();
+    else navigate(idleReturn?.selection || { view: 'graph' });
   }
   function restore() {
+    const leavingIdle = idle?.active;
+    if (leavingIdle) {
+      idle.leave();
+      if (idleReturn) applyState(idleReturn);
+      idleReturn = null;
+    }
     restoring = true;
     const saved =
       history.state?.fingerprint === model.manifest.fingerprint
         ? sessions.get(history.state?.knotKey)
         : null;
     selection = currentRoute();
+    if (selection.view === 'idle') {
+      const previous = sessions.get(history.state?.idleReturnKey);
+      idleReturn = previous || {
+        ...state(),
+        selection: { view: 'graph', id: null, revision: null },
+        recent: [...recent],
+      };
+      render();
+      restoring = false;
+      return;
+    }
     if (saved) {
-      selection = saved.selection;
-      graph.setState(saved.graph);
-      $('knowledge-search').value = saved.query;
-      $('record-filter').value = saved.role;
-      $('note-kind').value = saved.kind;
-      collection = saved.collection;
-      collectionTitle = saved.collectionTitle;
-      page = saved.page;
-      scrolls = saved.scrolls;
-      for (const d of $('library-tree').querySelectorAll('details'))
-        d.open = saved.branches.includes(d.dataset.branch);
+      applyState(saved);
     } else {
       history.replaceState(
         { knotKey: ++serial, fingerprint: model.manifest.fingerprint },
@@ -126,6 +186,8 @@
     render();
     restoring = false;
     save();
+    if (leavingIdle)
+      (idleFocus?.isConnected ? idleFocus : $('main-panel')).focus({ preventScroll: true });
   }
   window.addEventListener('popstate', restore);
   // Native links and pasted fragments also participate without persisting session state.
@@ -306,6 +368,34 @@
     }
   }
   function render() {
+    const isIdle = selection.view === 'idle';
+    document.body.classList.toggle('idle-active', isIdle);
+    $('idle-panel').hidden = !isIdle;
+    $('view-idle').setAttribute('aria-pressed', String(isIdle));
+    if (isIdle) {
+      $('view-graph').setAttribute('aria-pressed', 'false');
+      $('view-library').setAttribute('aria-pressed', 'false');
+      if (!idle.active) {
+        let filters = idleReturn?.graph.filters || {};
+        const encoded = new URLSearchParams(location.hash.slice(1)).get('filters');
+        if (encoded) {
+          try {
+            const supplied = JSON.parse(encoded);
+            filters = Object.fromEntries(
+              ['status', 'origin', 'theme', 'kind', 'type', 'showNotes']
+                .filter(
+                  (key) => typeof supplied?.[key] === (key === 'showNotes' ? 'boolean' : 'string'),
+                )
+                .map((key) => [key, supplied[key]]),
+            );
+          } catch {
+            /* Invalid display settings cannot change the dataset or its scope. */
+          }
+        }
+        idle.enter({ seed: idleReturn?.selection.id, filters });
+      }
+      return;
+    }
     const record = index.byId.get(selection.id),
       source = model.sources[selection.revision || selection.id];
     $('view-graph').setAttribute('aria-pressed', String(selection.view === 'graph'));
@@ -346,13 +436,18 @@
     $('main-panel').scrollTop = scrolls[selection.view] || 0;
     performance.mark('knot-view-ready');
   }
-  for (const view of ['graph', 'library'])
+  for (const view of ['graph', 'library', 'idle'])
     $('view-' + view).addEventListener('click', () => {
       save();
       navigate({
         view,
-        id: selection.id,
-        revision: view === 'library' ? selection.revision : null,
+        id: selection.view === 'idle' ? idleReturn?.selection.id : selection.id,
+        revision:
+          view === 'library'
+            ? selection.view === 'idle'
+              ? idleReturn?.selection.revision
+              : selection.revision
+            : null,
       });
     });
   $('read-selection').addEventListener('click', () =>
@@ -421,12 +516,17 @@
     `${model.manifest.history} Snapshot ${model.manifest.fingerprint.slice(0, 16)}.`;
   $('collection-counts').textContent =
     `${model.manifest.counts.notes} NOTES · ${model.manifest.counts.entities} ENTITIES · ${model.manifest.counts.claims} CLAIMS`;
+  idle = LibraryIdle.create(index, graph, {
+    exit: exitIdle,
+    read: (card) => navigate({ view: 'library', id: card.sourceId, revision: card.revision }),
+  });
   tree();
   restore();
   performance.mark('knot-library-ready');
   window.knotLibrary = {
     index,
     graph,
+    idle,
     navigate,
     get selection() {
       return { ...selection };

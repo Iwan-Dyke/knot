@@ -6,6 +6,266 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { execFileSync } = require('node:child_process');
 const playwright = require('playwright');
+const checkCinematicIdle = require('./test_idle_browser.cjs');
+
+async function checkIdle(page, context, folder, ids) {
+  await page.setViewportSize({ width: 1500, height: 1000 });
+  await page.goto(pathToFileURL(path.join(folder, 'library.html')).href);
+  await page.clock.install();
+  await page.evaluate(
+    (id) => knotLibrary.navigate({ view: 'graph', id }, { focus: true }),
+    ids.project,
+  );
+  await page.locator('#node-spacing').fill('150');
+  await page.locator('#node-spacing').dispatchEvent('input');
+  await page.evaluate(() => {
+    window.idleBefore = {
+      model: JSON.stringify(knotLibrary.index.model),
+      selection: knotLibrary.selection,
+      positions: knotLibrary.graph.network.getPositions(),
+      state: knotLibrary.graph.getState(),
+      recents: knotLibrary.recents,
+    };
+    window.originalNetwork = knotLibrary.graph.network;
+  });
+  await page.locator('#view-idle').click();
+  assert.equal(await page.locator('#idle-panel').isVisible(), true);
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.running), false);
+  const historyLength = await page.evaluate(() => history.length);
+  await page.locator('#idle-toggle').click();
+  assert.equal(
+    await page.evaluate(() => knotLibrary.idle.state.running),
+    true,
+    await page.locator('#idle-state').innerText(),
+  );
+  const first = await page.evaluate(() => knotLibrary.idle.state.current);
+  assert.ok(first);
+  assert.equal(await page.evaluate(() => knotLibrary.graph.network.physics.options.enabled), false);
+  assert.equal(await page.locator('#idle-card').isVisible(), false, 'Focus precedes reading');
+  await page.clock.runFor(50000);
+  const second = await page.evaluate(() => knotLibrary.idle.state.current);
+  assert.notEqual(
+    first,
+    second,
+    'Idle automatically follows an existing connection: ' +
+      JSON.stringify(
+        await page.evaluate(() => ({
+          state: knotLibrary.idle.state,
+          status: document.getElementById('idle-state').textContent,
+          connection: document.getElementById('idle-connection').textContent,
+        })),
+      ),
+  );
+  assert.ok((await page.locator('#idle-connection').innerText()).includes('→'));
+  assert.ok(
+    await page.evaluate(
+      () => knotLibrary.idle.state.visible <= 40 && knotLibrary.idle.state.edges <= 80,
+    ),
+  );
+  assert.equal(await page.evaluate(() => history.length), historyLength);
+  assert.equal(
+    await page.evaluate(() => knotLibrary.graph.network === window.originalNetwork),
+    true,
+  );
+  assert.deepEqual(
+    await page.evaluate(() => knotLibrary.recents),
+    await page.evaluate(() => idleBefore.recents),
+  );
+  await page.screenshot({ path: path.join(folder, 'idle.png') });
+  await page.locator('#idle-toggle').click();
+  await page.clock.runFor(60000);
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.current), second);
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.pending), false);
+  await page.locator('#idle-toggle').click();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.runFor(60000);
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.current), second);
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.pending), false);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('blur'));
+  });
+  assert.equal(
+    await page.evaluate(() => knotLibrary.idle.state.running && knotLibrary.idle.state.pending),
+    true,
+  );
+  await page.locator('#idle-toggle').click();
+  await page.locator('#idle-exit').click();
+  await page.waitForFunction(() => knotLibrary.selection.view === 'graph');
+  assert.deepEqual(
+    await page.evaluate(() => knotLibrary.selection),
+    await page.evaluate(() => idleBefore.selection),
+  );
+  assert.deepEqual(
+    await page.evaluate(() => knotLibrary.graph.network.getPositions()),
+    await page.evaluate(() => idleBefore.positions),
+  );
+  assert.equal(await page.locator('#node-spacing').inputValue(), '150');
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.cachedPositions), 0);
+  assert.equal(
+    await page.evaluate(() => JSON.stringify(knotLibrary.index.model) === idleBefore.model),
+    true,
+  );
+  await page.goForward();
+  assert.equal(await page.evaluate(() => knotLibrary.selection.view), 'idle');
+  assert.equal(
+    await page.evaluate(() => knotLibrary.idle.state.running),
+    false,
+    'Forward never starts a tour',
+  );
+  await page.locator('#idle-toggle').click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.runFor(20100);
+  assert.equal(await page.evaluate(() => knotLibrary.idle.state.animating), false);
+  const idleHistory = await page.evaluate(() => history.length);
+  for (let i = 0; i < 80; i++) await page.clock.runFor(20100);
+  assert.equal(await page.evaluate(() => history.length), idleHistory);
+  assert.ok(
+    await page.evaluate(
+      () => knotLibrary.idle.state.cachedPositions <= knotLibrary.index.records.length,
+    ),
+  );
+  assert.ok(
+    await page.evaluate(
+      () => knotLibrary.idle.state.visible <= 40 && knotLibrary.idle.state.edges <= 80,
+    ),
+  );
+  for (
+    let i = 0;
+    i < 50 && (await page.evaluate(() => knotLibrary.idle.state.phase)) !== 'reading';
+    i++
+  )
+    await page.clock.runFor(500);
+  await page.locator('#idle-read').click();
+  assert.equal(await page.evaluate(() => knotLibrary.selection.view), 'library');
+  assert.ok(await page.evaluate(() => knotLibrary.selection.revision));
+  const libraryReturn = await page.evaluate(() => ({
+    selection: knotLibrary.selection,
+    graph: knotLibrary.graph.getState(),
+    recents: knotLibrary.recents,
+  }));
+  await page.locator('#view-idle').click();
+  await page.locator('#idle-filters').evaluate((e) => (e.open = true));
+  await page.locator('#idle-status').selectOption('Accepted');
+  const popupPromise = context.waitForEvent('page');
+  await page.locator('#idle-window').click();
+  const popup = await popupPromise;
+  await popup.waitForFunction(() => window.knotLibrary);
+  assert.equal(await popup.evaluate(() => knotLibrary.selection.view), 'idle');
+  assert.equal(await popup.evaluate(() => knotLibrary.idle.state.running), false);
+  assert.equal(await popup.locator('#idle-status').inputValue(), 'Accepted');
+  assert.equal(await popup.evaluate(() => window.opener), null);
+  await popup.close();
+  await page.locator('#idle-fullscreen').click();
+  if (await page.evaluate(() => !!document.fullscreenElement)) {
+    await page.keyboard.press('Escape');
+    // Some headless window managers do not implement the browser's Escape exit.
+    if (await page.evaluate(() => !!document.fullscreenElement))
+      await page.locator('#idle-fullscreen').click();
+    await page.waitForFunction(() => !document.fullscreenElement);
+    assert.equal(await page.evaluate(() => knotLibrary.selection.view), 'idle');
+  } else assert.ok((await page.locator('#idle-state').innerText()).includes('window'));
+  await page.locator('#idle-exit').click();
+  await page.waitForFunction(() => knotLibrary.selection.view === 'library');
+  assert.deepEqual(await page.evaluate(() => knotLibrary.selection), libraryReturn.selection);
+  assert.deepEqual(
+    await page.evaluate(() => knotLibrary.graph.getState().positions),
+    libraryReturn.graph.positions,
+  );
+  assert.deepEqual(await page.evaluate(() => knotLibrary.recents), libraryReturn.recents);
+  await page.clock.resume();
+  console.log('Idle browser traversal, pause, visibility, provenance and navigation checks passed');
+}
+
+async function checkIdleFixtures(page, folder) {
+  // Browser-only projection fixtures: these are never saved through knowledge authoring APIs.
+  const base = await page.evaluate(() => structuredClone(knotLibrary.index.model));
+  const template = await fs.readFile(path.join(folder, 'library.html'), 'utf8');
+  await page.clock.install();
+  for (const size of [0, 1, 70]) {
+    const fixture = {
+      ...base,
+      notes: {},
+      entities: {},
+      claims: {},
+      relations: [],
+      sources: {},
+      reviews: [],
+      historical_claims: {},
+      themes: [],
+      bodies: {
+        example: {
+          text: 'A complete synthetic reading passage.',
+          html: { markdown: '<p>A complete synthetic reading passage.</p>' },
+        },
+      },
+    };
+    delete fixture.initial_record;
+    fixture.manifest = {
+      ...base.manifest,
+      fingerprint: 'synthetic-idle-' + size,
+      counts: { notes: size, entities: 0, claims: 0 },
+    };
+    for (let i = 0; i < size; i++) {
+      const id = 'urn:example:idle:note:' + i;
+      fixture.notes[id] = {
+        id,
+        title: 'Example note ' + i,
+        revision: 'urn:example:idle:revision:' + i,
+        body: 'example',
+        format: 'markdown',
+        author: 'Example writer',
+        entities: [],
+        sources: [],
+        history: [],
+        navigation: { links: [], themes: [], declarations: [] },
+      };
+      if (i)
+        fixture.relations.push({
+          id: 'edge-' + i,
+          from: 'urn:example:idle:note:0',
+          to: id,
+          kind: 'link',
+          label: 'links to',
+        });
+    }
+    const output = path.join(folder, 'idle-' + size + '.html');
+    await fs.writeFile(
+      output,
+      template.replace(
+        /(<script id="library-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+        (_, start, end) => start + JSON.stringify(fixture).replace(/</g, '\\u003c') + end,
+      ),
+    );
+    await page.goto(pathToFileURL(output).href + '#view=idle');
+    await page.locator('#idle-depth').selectOption('2');
+    await page.locator('#idle-toggle').click();
+    if (size === 1) await page.clock.runFor(22000);
+    const state = await page.evaluate(() => knotLibrary.idle.state);
+    assert.ok(state.visible <= 40 && state.edges <= 80);
+    if (size < 2) {
+      assert.equal(state.pending, false);
+      assert.equal(state.running, false);
+      assert.equal(state.visible, size);
+    } else {
+      assert.equal(state.running, true);
+      assert.ok((await page.locator('#idle-counts').innerText()).includes('omitted'));
+      await page.locator('#idle-toggle').click();
+      await page.setViewportSize({ width: 360, height: 800 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.screenshot({ path: path.join(folder, 'idle-narrow.png') });
+      await page.setViewportSize({ width: 1500, height: 1000 });
+    }
+    await page.locator('#idle-exit').click();
+    assert.equal(await page.evaluate(() => knotLibrary.selection.view), 'graph');
+  }
+  console.log('Idle empty, singleton, dense and narrow-screen checks passed');
+  await page.clock.resume();
+}
 
 async function checkDenseFocus(page, folder) {
   // A browser-only projection fixture, never an authoritative knowledge dataset.
@@ -136,6 +396,15 @@ async function main() {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   try {
+    if (process.argv.includes('--idle-only')) {
+      await checkIdle(page, context, folder, ids);
+      await checkIdleFixtures(page, folder);
+      await checkCinematicIdle(page, folder);
+      assert.deepEqual(errors, []);
+      assert.deepEqual(requests, []);
+      console.log('Offline Idle checks passed. Artifacts: ' + folder);
+      return;
+    }
     await page.goto(pathToFileURL(path.join(folder, 'library.html')).href);
     await page.waitForFunction(() => window.knotLibrary);
     assert.equal(await page.locator('#view-graph').getAttribute('aria-pressed'), 'true');
@@ -402,10 +671,16 @@ async function main() {
     assert.deepEqual(await page.evaluate(() => knotLibrary.graph.network.getPositions()), arranged);
     await page.locator('#full-graph').click();
     await page.locator('#focused-graph').click();
+    const afterModeChange = await page.evaluate(() => knotLibrary.graph.network.getPositions());
     assert.deepEqual(
-      await page.evaluate(() => knotLibrary.graph.network.getPositions()),
+      afterModeChange,
       arranged,
-      'Pausing keeps the new arrangement across mode changes',
+      'Pausing keeps the new arrangement across mode changes: ' +
+        JSON.stringify(
+          Object.keys(arranged)
+            .filter((id) => JSON.stringify(arranged[id]) !== JSON.stringify(afterModeChange[id]))
+            .map((id) => ({ id, before: arranged[id], after: afterModeChange[id] })),
+        ),
     );
     await page.locator('#view-library').click();
     await page.locator('#knowledge-search').fill('independent question');
@@ -527,6 +802,9 @@ async function main() {
     );
     assert.equal(await direct.locator('#reader-panel h1').innerText(), 'An independent question');
     await direct.close();
+    await checkIdle(page, context, folder, ids);
+    await checkIdleFixtures(page, folder);
+    await checkCinematicIdle(page, folder);
     await checkDenseFocus(page, folder);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(pathToFileURL(path.join(folder, 'library.html')).href);

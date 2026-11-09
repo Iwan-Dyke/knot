@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
-    <title>KNOT · Graph &amp; Library</title>
+    <title>KNOT · Library, Graph &amp; Idle</title>
     <style>
       /* VIS_STYLES */
     </style>
@@ -22,8 +22,9 @@
         >❯ KNOT <span>KNOWLEDGE, CONNECTED</span></a
       >
       <nav aria-label="Views">
-        <button id="view-graph" aria-pressed="true">Graph</button
-        ><button id="view-library" aria-pressed="false">Library</button>
+        <button id="view-library" aria-pressed="false">Library</button>
+        <button id="view-graph" aria-pressed="true">Graph</button>
+        <button id="view-idle" aria-pressed="false">Idle</button>
       </nav>
       <div class="snapshot">
         <span id="snapshot-time"></span>
@@ -185,6 +186,88 @@
         <div id="context-content"><p>Select a record to see its sources and connections.</p></div>
       </aside>
     </main>
+    <section id="idle-panel" hidden aria-label="Idle knowledge exploration" tabindex="-1">
+      <div class="idle-toolbar">
+        <div>
+          <span class="eyebrow">IDLE</span>
+          <h1>Knowledge, unfolding</h1>
+        </div>
+        <div class="button-row">
+          <button id="idle-toggle">Start</button>
+          <label
+            >Depth
+            <select id="idle-depth">
+              <option value="1">One hop</option>
+              <option value="2">Two hops</option>
+            </select></label
+          >
+          <label
+            >Focus
+            <select id="idle-focus">
+              <option value="3">3 seconds</option>
+              <option value="5">5 seconds</option>
+              <option value="10" selected>10 seconds</option>
+              <option value="20">20 seconds</option>
+              <option value="30">30 seconds</option>
+            </select></label
+          >
+          <label
+            >Read
+            <select id="idle-reading">
+              <option value="10" selected>10 seconds</option>
+              <option value="15">15 seconds</option>
+              <option value="20">20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">1 minute</option>
+              <option value="120">2 minutes</option>
+            </select></label
+          >
+          <label
+            >Travel
+            <select id="idle-travel">
+              <option value="4">4 seconds</option>
+              <option value="12">12 seconds</option>
+              <option value="24" selected>24 seconds</option>
+              <option value="40">40 seconds</option>
+            </select></label
+          >
+          <button id="idle-fullscreen">Full screen</button>
+          <a id="idle-window" target="_blank" rel="noopener" href="#view=idle"
+            >Open another window</a
+          >
+          <button id="idle-exit">Exit Idle</button>
+        </div>
+        <details id="idle-filters">
+          <summary>Exploration filters</summary>
+          <div id="idle-filter-controls" class="filter-row"></div>
+        </details>
+        <span id="idle-state" role="status" aria-live="polite">Ready</span>
+      </div>
+      <div id="idle-stage">
+        <div id="idle-welcome" class="empty-state">
+          <span class="empty-symbol">✧</span>
+          <h2>Let your knowledge reveal itself</h2>
+          <p>
+            Follow familiar connections and discover another corner of your notes.<br />Choose Start
+            when you’re ready.
+          </p>
+        </div>
+        <article id="idle-card" hidden aria-label="Current knowledge">
+          <span id="idle-card-kind" class="eyebrow"></span>
+          <h2 id="idle-title"></h2>
+          <p id="idle-excerpt"></p>
+          <p id="idle-qualification"></p>
+          <p id="idle-attribution" class="metadata"></p>
+          <p id="idle-sources" class="metadata"></p>
+          <button id="idle-read">Pause and read source</button>
+        </article>
+        <div class="idle-caption">
+          <p id="idle-connection"></p>
+          <span id="idle-counts"></span>
+        </div>
+      </div>
+      <p id="idle-snapshot" class="metadata"></p>
+    </section>
     <footer>
       <span id="collection-counts"></span
       ><span>OFFLINE SNAPSHOT · ONE KNOWLEDGE SYSTEM · READ ONLY</span>
