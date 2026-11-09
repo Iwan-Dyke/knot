@@ -3,7 +3,7 @@ const LibraryGraph = (() => {
   const { element, button, link, paged } = LibraryDOM;
   function create(index, { navigate, changed, selected }) {
     const $ = (id) => document.getElementById(id),
-      colors = index.model.palette.colors,
+      styles = LibraryGraphStyle.create(index.model.palette),
       reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     let network = null,
       motion,
@@ -182,57 +182,9 @@ const LibraryGraph = (() => {
       connections();
     }
     function renderNetwork(scene, layout, id, highlighted = null) {
-      const visualNodes = scene.nodes.map((n) => ({
-        id: n.id,
-        label: ambient
-          ? n.title
-          : n.title + '\n' + (n.role === 'note' ? 'Note' : n.entityTypes.join(' · ')),
-        shape: ambient ? 'dot' : n.role === 'note' ? 'box' : 'dot',
-        size: 14,
-        fixed: ambient,
-        chosen: !ambient,
-        opacity: 1,
-        shadow: { enabled: false },
-        ...layout[n.id],
-        color:
-          n.role === 'note' ? colors.note : { background: colors.entity, border: colors.accent },
-        font: {
-          color: n.role === 'note' ? colors['note-text'] : colors.text,
-          face: index.model.palette.fonts.graph,
-          size: ambient ? 19 : 13,
-        },
-        widthConstraint: { maximum: 240 },
-        margin: 10,
-        borderWidth: n.id === id ? (ambient ? 5 : 3) : 1,
-        ...(ambient ? idleNode(n.id, n.opacity ?? 1, n.id === id ? 1 : 0) : {}),
-      }));
-      const visualEdges = scene.edges.map((e) => ({
-        id: e.id,
-        from: e.from,
-        to: e.to,
-        label: ambient && e.id !== highlighted ? ' ' : e.label,
-        arrows: { to: { enabled: true, scaleFactor: ambient ? 0.45 : 1 } },
-        chosen: !ambient,
-        color: {
-          color: ambient
-            ? '#42bb87'
-            : e.navigation
-              ? colors.navigation
-              : e.status === 'Accepted'
-                ? colors.accepted
-                : colors.unreviewed,
-          opacity: ambient ? (e.opacity ?? 1) * (e.id === highlighted ? 0.95 : 0.5) : 1,
-        },
-        dashes: e.navigation ? [6, 4] : e.origin === 'Inferred',
-        width: ambient ? (e.id === highlighted ? 1.8 : 0.8) : e.status === 'Accepted' ? 2 : 1,
-        font: {
-          color: ambient ? '#a1d9bd' : colors['edge-text'],
-          size: ambient ? 13 : 10,
-          strokeWidth: 0,
-          align: 'middle',
-        },
-        smooth: { enabled: !ambient, type: 'curvedCW', roundness: 0.12 },
-      }));
+      const style = ambient ? styles.idle : styles.manual;
+      const visualNodes = scene.nodes.map((n) => ({ ...style.node(n, id), ...layout[n.id] }));
+      const visualEdges = scene.edges.map((e) => style.edge(e, highlighted));
       if (!network) {
         nodeSet = new vis.DataSet();
         edgeSet = new vis.DataSet();
@@ -276,42 +228,11 @@ const LibraryGraph = (() => {
       if (ambient) network.unselectAll();
       else if (id && wanted.has(id)) network.selectNodes([id], false);
     }
-    function idleNode(id, opacity, strength) {
-      return {
-        id,
-        opacity,
-        size: 6 + strength * 4,
-        borderWidth: 1 + strength,
-        color: {
-          background: `rgb(${Math.round(32 + strength * 124)},${Math.round(89 + strength * 154)},${Math.round(63 + strength * 136)})`,
-          border: '#69dca2',
-        },
-        font: {
-          color: `rgba(206,233,219,${opacity})`,
-          face: 'system-ui, sans-serif',
-          size: 17 + strength * 2,
-          strokeWidth: 0,
-        },
-        shadow: {
-          enabled: true,
-          color: `rgba(66,225,151,${(0.18 + strength * 0.25) * opacity})`,
-          size: 12 + strength * 16,
-          x: 0,
-          y: 0,
-        },
-      };
-    }
     function idleFrame(scene, opacity, focus, highlighted = null) {
-      nodeSet.update(scene.nodes.map((n) => idleNode(n.id, opacity(n.id), focus(n.id))));
-      edgeSet.update(
-        scene.edges.map((e) => ({
-          id: e.id,
-          color: {
-            color: '#42bb87',
-            opacity: Math.min(opacity(e.from), opacity(e.to)) * (e.id === highlighted ? 0.95 : 0.5),
-          },
-        })),
+      nodeSet.update(
+        scene.nodes.map((n) => styles.idle.frameNode(n.id, opacity(n.id), focus(n.id))),
       );
+      edgeSet.update(scene.edges.map((e) => styles.idle.frameEdge(e, opacity, highlighted)));
     }
     function showIdle(scene, layout, id, highlighted) {
       ambient = true;

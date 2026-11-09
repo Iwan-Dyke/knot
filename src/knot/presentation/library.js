@@ -5,34 +5,33 @@
   const model = JSON.parse($('library-data').textContent),
     index = LibraryModel.create(model);
   $('knowledge-search').value = model.initial_search || '';
-  const sessions = new Map();
-  const currentRoute = () => LibraryModel.route(location.hash, model.initial_record);
-  let selection = currentRoute(),
-    recent = [],
+  let recent = [],
     page = 0,
     collection = { type: 'all' },
-    collectionTitle = 'All knowledge';
-  let idle,
-    idleReturn = null,
-    idleFocus = null;
-  let serial = 0,
-    restoring = false,
+    collectionTitle = 'All knowledge',
+    idle,
+    navigation,
     queryTimer,
     readerKey = '',
     scrolls = { library: 0, graph: 0 };
+  const navigate = (...args) => navigation.navigate(...args);
+  const save = () => navigation.save();
   const reader = LibraryReader.create(index, navigate, setCollection);
   const graph = LibraryGraph.create(index, {
     navigate,
-    selected: () => selection.id,
+    selected: () => navigation.selection.id,
     changed: () => {
       if (idle?.active) return;
       save();
+      const selection = navigation.selection;
       reader.renderContext($('context-content'), selection.id, graph.filters, selection.revision);
     },
   });
-  function state() {
+  function state(includeRecents = false) {
+    const selection = navigation.selection;
     return {
       selection: { ...selection },
+      ...(includeRecents ? { recent: [...recent] } : {}),
       graph: graph.getState(),
       query: $('knowledge-search').value,
       role: $('record-filter').value,
@@ -46,82 +45,7 @@
       scrolls: { ...scrolls, [selection.view]: $('main-panel').scrollTop },
     };
   }
-  function save() {
-    if (restoring || selection.view === 'idle') return;
-    const key = history.state?.knotKey;
-    if (key !== undefined) sessions.set(key, state());
-  }
-  function navigate(route, { focus = false } = {}) {
-    if (route.view === 'idle' && selection.view === 'idle') return;
-    if (idle?.active && route.view && route.view !== 'idle') {
-      const saved = idleReturn;
-      idle.leave();
-      if (saved) applyState(saved);
-      idleReturn = null;
-      selection = {
-        view: route.view,
-        id: route.id ?? saved?.selection.id ?? null,
-        revision:
-          route.revision ?? (route.view === 'library' ? saved?.selection.revision : null) ?? null,
-      };
-      history.replaceState(
-        { knotKey: ++serial, fingerprint: model.manifest.fingerprint },
-        '',
-        LibraryModel.hash(selection),
-      );
-      readerKey = '';
-      render();
-      save();
-      (idleFocus?.isConnected ? idleFocus : $('main-panel')).focus({ preventScroll: true });
-      return;
-    }
-    save();
-    if (route.view === 'idle' && selection.view !== 'idle') {
-      idleReturn = { ...state(), recent: [...recent] };
-      idleFocus = document.activeElement;
-    }
-    const previous = selection;
-    const returnKey = route.view === 'idle' ? history.state?.knotKey : undefined;
-    selection = {
-      view: route.view || selection.view,
-      id: route.id ?? null,
-      revision: route.revision || null,
-    };
-    history.pushState(
-      { knotKey: ++serial, fingerprint: model.manifest.fingerprint, idleReturnKey: returnKey },
-      '',
-      LibraryModel.hash(selection),
-    );
-    if (selection.view === 'graph' && selection.id && !index.byId.has(selection.id)) {
-      graph.setState({ seed: null, full: false, positions: {}, camera: null });
-    } else if (
-      focus ||
-      (selection.view === 'graph' &&
-        selection.id &&
-        ((!graph.seed && !graph.full) ||
-          (previous.view === 'library' &&
-            !graph.visible?.nodes.some((n) => n.id === selection.id))))
-    ) {
-      graph.setState({
-        seed: selection.id,
-        hops: 1,
-        expanded: [],
-        collapsed: [],
-        preferred: [],
-        full: false,
-        positions: {},
-        camera: null,
-      });
-    }
-    if (previous.id !== selection.id) scrolls[selection.view] = 0;
-    render();
-    save();
-    const focusTarget = selection.view === 'idle' ? $('idle-toggle') : $('selection-title');
-    focusTarget.tabIndex = selection.view === 'idle' ? 0 : -1;
-    focusTarget.focus({ preventScroll: true });
-  }
   function applyState(saved) {
-    selection = saved.selection;
     graph.setState(saved.graph);
     $('knowledge-search').value = saved.query;
     $('record-filter').value = saved.role;
@@ -134,68 +58,8 @@
       d.open = saved.branches.includes(d.dataset.branch);
     if (saved.recent) recent = [...saved.recent];
   }
-  function exitIdle() {
-    if (!idle?.active) return;
-    if (history.state?.idleReturnKey !== undefined && sessions.has(history.state.idleReturnKey))
-      history.back();
-    else navigate(idleReturn?.selection || { view: 'graph' });
-  }
-  function restore() {
-    const leavingIdle = idle?.active;
-    if (leavingIdle) {
-      idle.leave();
-      if (idleReturn) applyState(idleReturn);
-      idleReturn = null;
-    }
-    restoring = true;
-    const saved =
-      history.state?.fingerprint === model.manifest.fingerprint
-        ? sessions.get(history.state?.knotKey)
-        : null;
-    selection = currentRoute();
-    if (selection.view === 'idle') {
-      const previous = sessions.get(history.state?.idleReturnKey);
-      idleReturn = previous || {
-        ...state(),
-        selection: { view: 'graph', id: null, revision: null },
-        recent: [...recent],
-      };
-      render();
-      restoring = false;
-      return;
-    }
-    if (saved) {
-      applyState(saved);
-    } else {
-      history.replaceState(
-        { knotKey: ++serial, fingerprint: model.manifest.fingerprint },
-        '',
-        location.hash || LibraryModel.hash(selection),
-      );
-      graph.setState({
-        seed: selection.id,
-        full: false,
-        positions: {},
-        expanded: [],
-        collapsed: [],
-        preferred: [],
-        hops: 1,
-      });
-    }
-    readerKey = '';
-    render();
-    restoring = false;
-    save();
-    if (leavingIdle)
-      (idleFocus?.isConnected ? idleFocus : $('main-panel')).focus({ preventScroll: true });
-  }
-  window.addEventListener('popstate', restore);
-  // Native links and pasted fragments also participate without persisting session state.
-  window.addEventListener('hashchange', () => {
-    const route = currentRoute();
-    if (JSON.stringify(route) !== JSON.stringify(selection)) restore();
-  });
   function choose(record) {
+    const selection = navigation.selection;
     navigate(
       { view: selection.view, id: record.id },
       { focus: selection.view === 'graph' && !graph.full },
@@ -203,6 +67,7 @@
     if (innerWidth < 700) $('navigation-panel').classList.remove('drawer-open');
   }
   function renderResults() {
+    const selection = navigation.selection;
     const results = index.search($('knowledge-search').value, {
       role: $('record-filter').value,
       kind: $('note-kind').value,
@@ -357,6 +222,7 @@
     parent.append(types);
   }
   function renderRecents() {
+    const selection = navigation.selection;
     $('recent-list').replaceChildren();
     for (const id of recent) {
       const record = index.byId.get(id);
@@ -368,6 +234,7 @@
     }
   }
   function render() {
+    const selection = navigation.selection;
     const isIdle = selection.view === 'idle';
     document.body.classList.toggle('idle-active', isIdle);
     $('idle-panel').hidden = !isIdle;
@@ -375,25 +242,6 @@
     if (isIdle) {
       $('view-graph').setAttribute('aria-pressed', 'false');
       $('view-library').setAttribute('aria-pressed', 'false');
-      if (!idle.active) {
-        let filters = idleReturn?.graph.filters || {};
-        const encoded = new URLSearchParams(location.hash.slice(1)).get('filters');
-        if (encoded) {
-          try {
-            const supplied = JSON.parse(encoded);
-            filters = Object.fromEntries(
-              ['status', 'origin', 'theme', 'kind', 'type', 'showNotes']
-                .filter(
-                  (key) => typeof supplied?.[key] === (key === 'showNotes' ? 'boolean' : 'string'),
-                )
-                .map((key) => [key, supplied[key]]),
-            );
-          } catch {
-            /* Invalid display settings cannot change the dataset or its scope. */
-          }
-        }
-        idle.enter({ seed: idleReturn?.selection.id, filters });
-      }
       return;
     }
     const record = index.byId.get(selection.id),
@@ -420,9 +268,6 @@
         : 'One knowledge system · two views';
     $('read-selection').hidden = selection.view !== 'graph' || !record;
     $('explore-selection').hidden = selection.view !== 'library' || !record;
-    if (record) {
-      recent = [record.id, ...recent.filter((id) => id !== record.id)].slice(0, 20);
-    }
     renderRecents();
     renderResults();
     reader.renderContext($('context-content'), selection.id, graph.filters, selection.revision);
@@ -437,24 +282,12 @@
     performance.mark('knot-view-ready');
   }
   for (const view of ['graph', 'library', 'idle'])
-    $('view-' + view).addEventListener('click', () => {
-      save();
-      navigate({
-        view,
-        id: selection.view === 'idle' ? idleReturn?.selection.id : selection.id,
-        revision:
-          view === 'library'
-            ? selection.view === 'idle'
-              ? idleReturn?.selection.revision
-              : selection.revision
-            : null,
-      });
-    });
+    $('view-' + view).addEventListener('click', () => navigation.switchView(view));
   $('read-selection').addEventListener('click', () =>
-    navigate({ view: 'library', id: selection.id }),
+    navigate({ view: 'library', id: navigation.selection.id }),
   );
   $('explore-selection').addEventListener('click', () =>
-    navigate({ view: 'graph', id: selection.id }, { focus: true }),
+    navigate({ view: 'graph', id: navigation.selection.id }, { focus: true }),
   );
   $('start-library').addEventListener('click', () => navigate({ view: 'library' }));
   document.querySelector('.skip').addEventListener('click', (event) => {
@@ -491,7 +324,7 @@
   $('main-panel').addEventListener(
     'scroll',
     () => {
-      scrolls[selection.view] = $('main-panel').scrollTop;
+      scrolls[navigation.selection.view] = $('main-panel').scrollTop;
       save();
     },
     { passive: true },
@@ -517,11 +350,26 @@
   $('collection-counts').textContent =
     `${model.manifest.counts.notes} NOTES · ${model.manifest.counts.entities} ENTITIES · ${model.manifest.counts.claims} CLAIMS`;
   idle = LibraryIdle.create(index, graph, {
-    exit: exitIdle,
+    exit: () => navigation.exitIdle(),
     read: (card) => navigate({ view: 'library', id: card.sourceId, revision: card.revision }),
   });
+  navigation = LibraryNavigation.create(index, graph, {
+    idle: () => idle,
+    capture: state,
+    apply: applyState,
+    render,
+    resetReader: () => {
+      readerKey = '';
+    },
+    resetScroll: (view) => {
+      scrolls[view] = 0;
+    },
+    visit: (id) => {
+      if (index.byId.has(id)) recent = [id, ...recent.filter((other) => other !== id)].slice(0, 20);
+    },
+  });
   tree();
-  restore();
+  navigation.restore();
   performance.mark('knot-library-ready');
   window.knotLibrary = {
     index,
@@ -529,7 +377,7 @@
     idle,
     navigate,
     get selection() {
-      return { ...selection };
+      return navigation.selection;
     },
     get recents() {
       return [...recent];

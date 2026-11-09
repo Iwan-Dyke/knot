@@ -1,5 +1,52 @@
 const assert = require('node:assert/strict');
 const { create, route, hash } = require('../src/knot/presentation/library_model.js');
+const GraphStyle = require('../src/knot/presentation/library_graph_style.js');
+const Navigation = require('../src/knot/presentation/library_navigation.js');
+const manualRoute = { view: 'library', id: 'note', revision: 'old-revision' };
+const enterPlan = Navigation.transition(manualRoute, { view: 'idle', id: 'note' });
+assert.equal(enterPlan.kind, 'enter');
+assert.equal(enterPlan.history, 'push');
+assert.equal(Navigation.transition(enterPlan.selection, { view: 'idle' }).kind, 'stay');
+assert.deepEqual(
+  Navigation.transition(enterPlan.selection, { view: 'library' }, manualRoute).selection,
+  manualRoute,
+  'Exiting Idle restores the pinned manual revision',
+);
+assert.deepEqual(
+  Navigation.transition(
+    enterPlan.selection,
+    { view: 'library', id: 'source', revision: 'source-revision' },
+    manualRoute,
+  ).selection,
+  { view: 'library', id: 'source', revision: 'source-revision' },
+  'Reading an Idle source selects its exact revision instead of the saved reader',
+);
+assert.equal(
+  Navigation.transition(enterPlan.selection, { view: 'graph' }, manualRoute).selection.revision,
+  null,
+);
+assert.equal(manualRoute.revision, 'old-revision', 'Planning never mutates saved navigation');
+const styles = GraphStyle.create({
+  colors: { note: '#123456', 'note-text': '#abcdef', accepted: '#fedcba', 'edge-text': '#111111' },
+  fonts: { graph: 'monospace' },
+});
+const styleNote = { id: 'note', title: 'A note', role: 'note', entityTypes: [] };
+const styleEdge = { id: 'edge', from: 'note', to: 'entity', label: 'supports', status: 'Accepted' };
+const idleStyle = styles.idle.node(styleNote, 'note');
+const manualStyle = styles.manual.node(styleNote, 'note');
+assert.equal(idleStyle.fixed, true);
+assert.equal(idleStyle.shadow.enabled, true);
+assert.equal(manualStyle.fixed, false, 'Returning to Graph releases Idle position locks');
+assert.equal(manualStyle.shadow.enabled, false, 'Returning to Graph removes Idle glow');
+assert.equal(manualStyle.opacity, 1);
+assert.equal(manualStyle.shape, 'box');
+assert.equal(manualStyle.label, 'A note\nNote');
+assert.equal(styles.manual.edge(styleEdge).color.opacity, 1);
+assert.equal(styles.manual.edge(styleEdge).smooth.enabled, true);
+assert.equal(styles.idle.edge(styleEdge, 'edge').smooth.enabled, false);
+assert.equal(styles.idle.edge(styleEdge, 'edge').label, 'supports');
+assert.equal(styles.idle.frameNode('note', 0, 0).opacity, 0);
+assert.equal(styles.idle.frameEdge(styleEdge, () => 0, 'edge').color.opacity, 0);
 const notes = {
   n: {
     id: 'n',

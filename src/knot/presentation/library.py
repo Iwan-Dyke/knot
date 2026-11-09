@@ -46,8 +46,10 @@ def render_snapshot(model, *, visual_theme='matrix'):
                 'library_dom.js',
                 'library_reader.js',
                 'library_layout.js',
+                'library_graph_style.js',
                 'library_graph.js',
                 'library_idle.js',
+                'library_navigation.js',
                 'library.js',
             )
         ),
