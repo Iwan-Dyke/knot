@@ -10,6 +10,7 @@
     collection = { type: 'all' },
     collectionTitle = 'All knowledge',
     idle,
+    authoring,
     navigation,
     queryTimer,
     readerKey = '',
@@ -235,6 +236,7 @@
   }
   function render() {
     const selection = navigation.selection;
+    authoring?.update();
     const isIdle = selection.view === 'idle';
     document.body.classList.toggle('idle-active', isIdle);
     $('idle-panel').hidden = !isIdle;
@@ -334,21 +336,33 @@
     o.value = value;
     $(select).append(o);
   };
-  for (const kind of [
-    ...new Set(Object.values(model.notes).map((n) => n.kind || 'Unspecified')),
-  ].sort())
-    option('note-kind', kind);
-  for (const kind of [...new Set(Object.values(model.claims).map((c) => c.kind))].sort())
-    option('claim-kind', kind);
-  for (const theme of model.themes) option('claim-theme', theme.id, theme.label);
-  for (const type of [...new Set(index.nodes.flatMap((n) => n.entityTypes))].sort())
-    option('graph-type', type);
-  $('snapshot-time').textContent =
-    'Snapshot · ' + new Date(model.manifest.generated_at).toLocaleString();
-  $('snapshot-info').textContent =
-    `${model.manifest.history} Snapshot ${model.manifest.fingerprint.slice(0, 16)}.`;
-  $('collection-counts').textContent =
-    `${model.manifest.counts.notes} NOTES · ${model.manifest.counts.entities} ENTITIES · ${model.manifest.counts.claims} CLAIMS`;
+  function metadata() {
+    for (const id of ['note-kind', 'claim-kind', 'claim-theme', 'graph-type']) {
+      const value = $(id).value;
+      $(id).replaceChildren($(id).firstElementChild);
+      $(id).dataset.previous = value;
+    }
+    for (const kind of [
+      ...new Set(Object.values(model.notes).map((n) => n.kind || 'Unspecified')),
+    ].sort())
+      option('note-kind', kind);
+    for (const kind of [...new Set(Object.values(model.claims).map((c) => c.kind))].sort())
+      option('claim-kind', kind);
+    for (const theme of model.themes) option('claim-theme', theme.id, theme.label);
+    for (const type of [...new Set(index.nodes.flatMap((n) => n.entityTypes))].sort())
+      option('graph-type', type);
+    $('snapshot-time').textContent =
+      'Snapshot · ' + new Date(model.manifest.generated_at).toLocaleString();
+    $('snapshot-info').textContent =
+      `${model.manifest.history} Snapshot ${model.manifest.fingerprint.slice(0, 16)}.`;
+    $('collection-counts').textContent =
+      `${model.manifest.counts.notes} NOTES · ${model.manifest.counts.entities} ENTITIES · ${model.manifest.counts.claims} CLAIMS`;
+    for (const id of ['note-kind', 'claim-kind', 'claim-theme', 'graph-type']) {
+      const value = $(id).dataset.previous;
+      if ([...$(id).options].some((option) => option.value === value)) $(id).value = value;
+    }
+  }
+  metadata();
   idle = LibraryIdle.create(index, graph, {
     exit: () => navigation.exitIdle(),
     read: (card) => navigate({ view: 'library', id: card.sourceId, revision: card.revision }),
@@ -368,6 +382,21 @@
       if (index.byId.has(id)) recent = [id, ...recent.filter((other) => other !== id)].slice(0, 20);
     },
   });
+  if (model.authoring && typeof LibraryAuthoring !== 'undefined') {
+    authoring = LibraryAuthoring.create(index, {
+      selection: () => navigation.selection,
+      refresh: (snapshot, note) => {
+        if (idle.active) navigation.switchView('library');
+        Object.assign(model, snapshot);
+        Object.assign(index, LibraryModel.create(model));
+        readerKey = '';
+        $('library-tree').replaceChildren();
+        tree();
+        metadata();
+        navigate(note ? { view: 'library', id: note } : navigation.selection);
+      },
+    });
+  }
   tree();
   navigation.restore();
   performance.mark('knot-library-ready');

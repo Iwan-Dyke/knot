@@ -35,7 +35,7 @@ const LibraryIdle = (() => {
       select.id = 'idle-' + key;
       label.append(document.createTextNode(key[0].toUpperCase() + key.slice(1) + ' '), select);
       $('idle-filter-controls').append(label);
-      filterInputs.set(key, select);
+      filterInputs.set(key, { select, source });
       select.addEventListener('change', () => {
         filters[key] = select.value;
         reconfigure();
@@ -430,8 +430,10 @@ const LibraryIdle = (() => {
       tourSeed = crypto.getRandomValues(new Uint32Array(1))[0];
       seed = options.seed;
       filters = { ...options.filters };
-      for (const [key, select] of filterInputs)
+      for (const [key, { select, source }] of filterInputs) {
+        select.replaceChildren(...[...$(source).options].map((option) => option.cloneNode(true)));
         select.value = filters[key] || (['status', 'origin'].includes(key) ? 'all' : '');
+      }
       noteToggle.checked = filters.showNotes !== false;
       graph.setActive(false);
       $('idle-stage').prepend(canvas);

@@ -23,6 +23,7 @@ def _view_hint(result, data_root):
 
 
 DELEGATES = {
+    'serve': ('knot.interfaces.library_server', True, 'Open the local Library with note editing'),
     'theme': ('knot.interfaces.visual_theme_cli', False, 'Choose or create a visual theme'),
     'view': (
         'knot.interfaces.view_cli',

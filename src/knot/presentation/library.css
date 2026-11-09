@@ -29,7 +29,8 @@ body {
 }
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -74,6 +75,46 @@ select:focus-visible,
 summary:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
+}
+textarea:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+#note-editor {
+  width: min(850px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+#note-editor::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+#note-editor input,
+#note-editor textarea {
+  width: 100%;
+  display: block;
+  background: var(--control);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.7rem;
+  margin: 0.3rem 0 1rem;
+}
+#note-editor textarea {
+  resize: vertical;
+  min-height: 12rem;
+  line-height: 1.65;
+  font-family: var(--font-reader, var(--font-ui));
+}
+#editor-status,
+#editor-conflict {
+  margin-top: 1rem;
+}
+#authoring-status {
+  font-size: 0.85rem;
 }
 button {
   text-align: left;

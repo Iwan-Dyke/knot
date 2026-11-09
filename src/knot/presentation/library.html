@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src KNOT_CONNECT; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>KNOT · Library, Graph &amp; Idle</title>
     <style>
@@ -26,12 +26,17 @@
         <button id="view-graph" aria-pressed="true">Graph</button>
         <button id="view-idle" aria-pressed="false">Idle</button>
       </nav>
+      <div id="authoring-controls" class="button-row" hidden>
+        <button id="new-note">New note</button>
+        <button id="refresh-library">Refresh</button>
+        <span id="authoring-status" role="status" aria-live="polite"></span>
+      </div>
       <div class="snapshot">
         <span id="snapshot-time"></span>
         <details>
           <summary>About this snapshot</summary>
           <p id="snapshot-info"></p>
-          <p>
+          <p id="snapshot-help">
             To see saved changes, run <code>knot browse</code> again and reload this file. All
             embedded content is readable by anyone holding this file.
           </p>
@@ -91,6 +96,7 @@
           <div class="button-row">
             <button id="read-selection">Read in Library</button
             ><button id="explore-selection">Explore connections</button>
+            <button id="edit-note" hidden>Edit note</button>
           </div>
         </div>
         <div id="graph-panel">
@@ -268,9 +274,42 @@
       </div>
       <p id="idle-snapshot" class="metadata"></p>
     </section>
+    <dialog id="note-editor" aria-labelledby="editor-heading">
+      <h2 id="editor-heading">New note</h2>
+      <p id="editor-attribution" class="metadata"></p>
+      <label for="editor-title">Title (optional)</label>
+      <input id="editor-title" type="text" autocomplete="off" />
+      <div id="editor-new-fields" class="filter-row">
+        <label>Author (optional)<input id="editor-author" type="text" autocomplete="off" /></label>
+        <label
+          >Format<select id="editor-format">
+            <option value="markdown">Markdown</option>
+            <option value="org">Org</option>
+          </select></label
+        >
+      </div>
+      <label for="editor-body">Note</label>
+      <textarea id="editor-body" rows="15" spellcheck="true"></textarea>
+      <div class="button-row">
+        <button id="editor-preview-toggle" aria-expanded="false" aria-controls="editor-preview">
+          Preview
+        </button>
+        <button id="editor-save">Save note</button>
+        <button id="editor-cancel">Cancel</button>
+      </div>
+      <p id="editor-status" role="status" aria-live="polite"></p>
+      <article id="editor-preview" class="note-body" hidden></article>
+      <section id="editor-conflict" hidden aria-label="Latest saved version">
+        <h3>Latest saved version</h3>
+        <p>Your draft is still in the editor. Copy any text you want to keep before reloading.</p>
+        <h4 id="editor-current-title"></h4>
+        <pre id="editor-current-body"></pre>
+        <button id="editor-reload">Discard draft and load latest</button>
+      </section>
+    </dialog>
     <footer>
       <span id="collection-counts"></span
-      ><span>OFFLINE SNAPSHOT · ONE KNOWLEDGE SYSTEM · READ ONLY</span>
+      ><span id="interface-mode">OFFLINE SNAPSHOT · ONE KNOWLEDGE SYSTEM · READ ONLY</span>
       <details class="software-notices">
         <summary>Software licences</summary>
         <pre>KNOT_NOTICES</pre>

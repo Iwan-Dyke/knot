@@ -28,6 +28,10 @@ check: lint format-check test
 test-idle browser="chromium":
     node scripts/test_library_browser.cjs {{quote(browser)}} --idle-only
 
+# Requires the optional Playwright installation; uses temporary synthetic data.
+test-library-authoring browser="chromium":
+    node scripts/test_library_authoring.cjs {{quote(browser)}}
+
 migrate:
     PYTHONPATH=src .venv/bin/python -m knot.ingestion.migrate
     PYTHONPATH=src .venv/bin/python -m knot.graph.knowledge build
