@@ -133,6 +133,7 @@ publishes the completed HTML atomically; this is not a whole-dataset transaction
 | `presentation/library_idle.js` | Focus/read/travel sequence, gradual neighbourhood fades, controls and visibility/full-screen handling |
 | `presentation/library_navigation.js` | Route transitions, selection, browser history and saved manual context across Idle entry/exit |
 | `presentation/library_authoring.js` | Optional modal editor, preview, draft/conflict handling and save/refresh separation |
+| `presentation/library_organisation.js` | Draft note links and theme memberships, existing-note search and fresh catalogue choices |
 | `presentation/library.js` | DOM composition, search/tree/reader controls and session-only recents |
 
 [ADR 0048](../design_decisions/0048-idle-mode-autonomous-knowledge-exploration.md)

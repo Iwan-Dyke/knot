@@ -108,7 +108,7 @@ not current command references; use the linked guides for today's behaviour.
 | [0047](0047-unified-knowledge-library-and-graph-exploration.md) | Explore one knowledge system through a library and focused graph | Accepted | Implemented; optional ordinary-note authoring added by 0050 |
 | [0048](0048-idle-mode-autonomous-knowledge-exploration.md) | Cinematic exploration of existing knowledge in Idle | Accepted | Implemented; extended performance and accessibility validation pending |
 | [0049](0049-explicit-workflow-and-presentation-boundaries.md) | Separate terminal workflows, navigation, styles and ordered audit/retrieval stages | Accepted | Implemented |
-| [0050](0050-owner-local-library-authoring.md) | Write ordinary notes from an optional local Library | Accepted | Implemented; curation and review editing remain separate |
+| [0050](0050-owner-local-library-authoring.md) | Write ordinary notes from an optional local Library | Accepted | Implemented, including note links and theme memberships; curation and review editing remain separate |
 
 ## Add or revise a decision
 

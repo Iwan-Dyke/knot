@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-09
 - Implementation: Implemented
-- Extends: ADRs 0022, 0047 and 0049
+- Connections and themes increment: 2026-11-10
+- Extends: ADRs 0022, 0032, 0047 and 0049
 - Preserves: ADRs 0027–0030 and 0048
 
 ## Context
@@ -21,12 +22,14 @@ dataset. Reuse the existing viewer and authoring APIs. Keep `knot view`/`browse`
 as independent read-only exports; neither command starts a service. No new library,
 database, framework, AI provider or mandatory service is introduced.
 
-The first editor creates Markdown/Org notes and edits ordinary native notes' title
-and body. A new note may name its author; an edit retains existing authorship,
-format, kind, associations and navigation. Record the saving agent as `knot-library`.
+The editor creates Markdown/Org notes and edits ordinary native notes' title,
+body, explained note links and existing theme memberships. A new note may name its
+author; an edit retains existing authorship, format, kind, associations and entity
+declarations. Record the saving agent as `knot-library`.
 Curated notes, imported documents and pinned historical sources remain read-only
 in this increment. Existing declarations still constrain valid edits to their
-supporting text through the note API. Do not add claim, theme or review endpoints.
+supporting text through the note API. Do not add claim, theme-definition or review
+write endpoints.
 
 ```mermaid
 flowchart LR
@@ -53,8 +56,9 @@ must enforce its own boundary and must not expose a directory handler.
   calls. Reject cross-site Fetch Metadata when present. Every POST also requires
   the exact Origin and JSON content type. Return no CORS permission headers.
   Origin and custom-header checks follow [MDN's CSRF guidance](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/CSRF).
-- Fixed routes provide the page, snapshot, current ordinary note, preview, create
-  and save. No arbitrary files, commands, dataset switching or grant editing.
+- Fixed routes provide the page, snapshot, current ordinary note, preview, create,
+  save and read-only catalogue theme choices. No arbitrary files, commands, dataset
+  switching or grant editing.
 - Use no-store, no-referrer, frame-denial and nosniff headers. Allow same-origin
   connections only in the served page; exported pages retain `connect-src 'none'`.
   Reuse the existing inert markup allowlist and sandboxed Pandoc preview.
@@ -88,6 +92,42 @@ Use the snapshot builder's input signatures and verified sources, with a single
 disposable in-memory snapshot cache. Serialise this server's operations; existing
 note locking and expected revisions still protect against external writers. This
 does not turn the whole dataset into a transaction.
+
+### Optional note organisation
+
+Extend the same editor with a collapsed **Connections and themes** section. Search
+existing native notes by title/body, select a canonical target and explain why it
+is connected. Show author, kind and a short excerpt to distinguish similar titles.
+Allow editing explanations and removing links. Existing backlinks are derived from
+the saved source note; saving a link never rewrites its target. Do not parse arbitrary
+Markdown links into assertions or introduce another relationship store.
+
+Allow multiple existing catalogue themes, fetched when the editor opens. Retain a
+saved membership even if its old label or definition is no longer in the catalogue;
+show that difference explicitly. Adding a membership requires a current catalogue
+selection. Theme definitions and review remain in their existing workflows.
+
+The HTTP contract accepts optional `navigation` containing exactly `links` and
+`themes`. Omission preserves navigation; empty lists explicitly clear those two
+categories. The adapter retains declarations from the expected revision and uses
+the existing note API for validation and the write. Empty organisation on an older
+unorganised note must not create a revision by itself. Reject duplicate targets,
+blank explanations, unknown targets/themes and attempts to write declarations.
+Exclude the current note from new target choices; retain historical self-links
+without silently changing them.
+
+Conflict comparisons and identical-retry checks include navigation, even when the
+body/title did not change. Conflicts show the latest saved connections alongside
+the user's draft; loading the latest version still requires explicit discard.
+An identical create retry remains recognisable after catalogue changes. Saved
+links and memberships refresh the shared Library/Graph/Idle projection through the
+existing snapshot path. New external notes require Refresh before they enter the
+picker. Organisation stays optional, consistent with ADRs 0022 and 0032.
+
+Keep picker state in one small presentation controller and reuse the existing
+search index, literal DOM helpers and paging controls. A new widget framework or
+inline link syntax is unnecessary for this bounded increment. Persistent draft
+recovery and the full guided curation workflow remain separate work.
 
 ### Drafts and accessibility
 
@@ -125,13 +165,16 @@ preserve unchanged bodies and existing newline conventions where possible.
 Tests must verify immutable earlier bytes, retained metadata, idempotent retries,
 safe rendering, rejected unauthorised requests, unchanged grants/assertions and
 visible fresh content. Test only synthetic datasets. General curation, deletion,
-manual theme organisation, persistent drafts and real-time collaboration remain
+theme-definition editing, persistent drafts and real-time collaboration remain
 separate increments. There is no dataset migration or automatic commit/push.
 
 ## Implementation record
 
 The fixed-route adapter is in `interfaces/library_server.py`; `library_authoring.js`
-adds the optional editor to the existing viewer. Snapshot refresh rebuilds the read
+adds the optional editor to the existing viewer. `library_organisation.js` owns
+draft links and themes, reusing the shared search index and DOM/paging helpers.
+It preserves saved memberships if catalogue choices cannot load and offers a retry.
+Snapshot refresh rebuilds the read
 indexes and refreshes available Graph/Idle classifications. The static exporter
 does not bundle the authoring controller or its session capability.
 
@@ -140,5 +183,7 @@ writers, retried writes, input/access rejection, pinned source evidence and unch
 accepted assertions. Chromium and Firefox browser checks exercise actual saves,
 conflicts with retained drafts, lost responses, refresh failures, delayed previews,
 CRLF, Unicode, Org, cancellation and navigation using temporary synthetic datasets.
+Organisation checks cover links, backlinks, overlapping themes, metadata-only
+edits, conflict comparisons, retained drafts and removed catalogue memberships.
 The browser command is `just test-library-authoring chromium` (or `firefox`) with the
 same optional Playwright installation used by the existing viewer tests.

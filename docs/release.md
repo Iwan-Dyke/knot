@@ -103,6 +103,22 @@ current files does not sanitise earlier commits or remote URLs.
 
 ## Verification before publication
 
+The v0.3.0 feature update lets ordinary notes keep explained links and overlapping
+theme memberships through the local Library editor. Organisation-only changes
+participate in revision checks, draft warnings and retries. Historical memberships
+survive catalogue changes; theme definitions, entity declarations, curation and
+claim review retain their existing workflows. See
+[ADR 0050](../design_decisions/0050-owner-local-library-authoring.md).
+The source passed 550 tests and lint/format checks. Chromium and Firefox authoring
+checks cover the new controls, backlinks, conflict comparisons, unchanged saves,
+lost responses across catalogue changes, unavailable theme choices and retained
+memberships. The Chromium offline Library/Graph suite also passed, including
+eight accelerated hours of Idle and camera/layout checks. This is not a real-time
+memory soak test. Wheel and source archives include the organisation controller and
+consistent v0.3.0 metadata, licences and public examples. The packaged server saved
+links and themes against a synthetic dataset, refreshed its snapshot and exported
+a read-only page. Existing cached build tooling was used without new dependencies.
+
 The v0.2.0 feature update adds optional owner-local Library authoring through
 `knot serve`. Ordinary Markdown/Org notes can be created, previewed and edited
 through the existing note APIs, with immutable history, conflict detection and

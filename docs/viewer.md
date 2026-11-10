@@ -96,10 +96,24 @@ supported. This owner session is separate from scoped MCP grants.
 
 1. Choose **New note**, or select a current ordinary note and choose **Edit note**.
 2. Enter a title and body. New notes may optionally name an author and choose
-   Markdown or Org. Existing notes retain their author, format and organisation.
+   Markdown or Org. Existing notes retain their author and format.
 3. Choose **Preview** to check formatting. Preview does not save anything.
 4. Choose **Save note**. The existing note API writes a new immutable revision,
    then the page refreshes its knowledge and selects the saved note.
+
+Optionally open **Connections and themes** before saving. Search existing notes by
+title or body, select a target, and explain why it is connected. Author, kind and
+an excerpt help distinguish similar titles. Edit explanations or remove links in
+the same section; linking never changes the target note. Incoming backlinks appear
+automatically after saving. Use **Refresh** before opening the editor to include
+notes created elsewhere in its search results.
+
+Select any number of existing themes. Choices refresh when the editor opens.
+Older memberships retain their saved labels even when a theme was renamed or
+removed from the catalogue; the editor identifies these differences. Remove and
+reselect a renamed theme to use its current label. Define new themes through
+`knot themes`, then reopen the editor. If choices cannot load, existing memberships
+remain intact and **Retry theme choices** reloads the catalogue.
 
 Titles and authors are optional; empty notes are valid. Paragraphs and Unicode
 are retained. Unchanged bodies keep their exact bytes, including CRLF line endings;
@@ -108,9 +122,10 @@ when their text is edited. The saving agent is recorded as `knot-library`; an ed
 does not replace original authorship or accept claims.
 
 If another writer saved first, your draft stays in the editor alongside the latest
-saved text. Copy any changes you want to keep before **Discard draft and load latest**,
-then reconcile them and save against that version. Cancelling a dirty draft asks
-for confirmation. Drafts live only in the page and do not survive a browser crash.
+saved text, connections and themes. Copy any changes you want to keep before
+**Discard draft and load latest**, then reconcile them and save against that version.
+Cancelling a dirty draft asks for confirmation. Drafts live only in the page and do
+not survive a browser crash.
 
 If a response is lost, retry the same save: the draft keeps its identity and the
 server recognises identical retries. If the note saved but refreshing failed, the
@@ -121,8 +136,9 @@ background polling; editing opens the current verified version before you write.
 Curated notes, imported documents and pinned historical sources are read-only in
 this editor. Ordinary notes with entity declarations still require their quoted
 evidence to remain valid; edits that invalidate it must use the existing authoring
-workflow. The editor changes titles/bodies only, with no claim, grant, theme,
-identity, deletion or review actions. JSON requests are limited to 1 MiB; use the
+workflow. The editor changes titles, bodies, note links and theme memberships;
+claim, grant, theme-definition, identity, deletion and review actions use their
+existing workflows. JSON requests are limited to 1 MiB; use the
 CLI for larger edits. Snapshot rebuilding may take longer for large datasets.
 
 `knot view` and `knot browse` continue to generate independent read-only files. They
