@@ -15,6 +15,7 @@ from knot.graph.rdf import VOCAB
 from knot.interfaces.library_server import MAX_REQUEST, LibraryServer
 from knot.reviewing.writer import decide
 from knot.writing.notes import create_note, list_notes, note_history, read_note, save_note
+from knot.writing.themes import add_themes
 
 
 class LibraryServerTests(unittest.TestCase):
@@ -404,4 +405,226 @@ class LibraryServerTests(unittest.TestCase):
             },
         )
         self.assertEqual(status, 422)
+        self.assertEqual(self.files(), before)
+
+    def test_create_with_links_and_overlapping_themes_preserves_targets_and_retries(self):
+        themes = [{'id': 'gardens', 'label': 'Gardens'}, {'id': 'ideas', 'label': 'Ideas'}]
+        add_themes(self.root, themes)
+        before = self.files()
+        navigation = {
+            'links': [{'note': self.original['note'], 'reason': 'An earlier observation.'}],
+            'themes': themes,
+        }
+        payload = {
+            'note': 'urn:knot:note:' + str(uuid4()),
+            'body': 'An optional connection.',
+            'format': 'markdown',
+            'navigation': navigation,
+        }
+        status, receipt, _ = self.request('api/create', payload=payload)
+        self.assertEqual(status, 200, receipt)
+        self.assertEqual(self.request('api/create', payload=payload)[1], receipt)
+        saved = read_note(self.root, receipt['note'])
+        self.assertEqual(saved['navigation'], {**navigation, 'declarations': []})
+        self.assertEqual(read_note(self.root, self.original['note']), self.original)
+        for path, content in before.items():
+            if path != 'notes/registry.json':
+                self.assertEqual(self.files()[path], content)
+        _, snapshot, _ = self.request('api/snapshot')
+        self.assertTrue(
+            any(
+                r['from'] == saved['note']
+                and r['to'] == self.original['note']
+                and r['kind'] == 'link'
+                for r in snapshot['relations']
+            )
+        )
+        self.assertEqual(snapshot['notes'][saved['note']]['navigation']['themes'], themes)
+        self.assertEqual(
+            self.request(
+                'api/create', payload={k: v for k, v in payload.items() if k != 'navigation'}
+            )[0],
+            409,
+        )
+
+    def test_navigation_only_edit_clear_and_noop_keep_declarations_and_prior_bytes(self):
+        note = create_note(
+            self.root,
+            'Garden project.',
+            author='Writer',
+            kind='Thought',
+            navigation={
+                'themes': [],
+                'links': [],
+                'declarations': [
+                    {
+                        'id': 'urn:knot:entity:00000000-0000-4000-8000-000000000303',
+                        'label': 'Garden project',
+                        'type': 'Project',
+                        'quote': 'Garden project',
+                        'offset': 0,
+                    }
+                ],
+            },
+        )
+        before = self.files()
+        payload = {
+            'note': note['note'],
+            'expected': note['revision'],
+            'title': note['title'],
+            'body': note['body'],
+            'navigation': {
+                'themes': [],
+                'links': [{'note': self.original['note'], 'reason': 'Earlier context.'}],
+            },
+        }
+        status, receipt, _ = self.request('api/save', payload=payload)
+        self.assertEqual(status, 200, receipt)
+        self.assertEqual(self.request('api/save', payload=payload)[1], receipt)
+        saved = read_note(self.root, note['note'])
+        self.assertEqual(saved['navigation']['declarations'], note['navigation']['declarations'])
+        for field in ('body', 'author', 'kind', 'format', 'entities'):
+            self.assertEqual(saved[field], note[field])
+        self.assertEqual(len(note_history(self.root, note['note'])), 2)
+        self.assertEqual(
+            self.request('api/save', payload={**payload, 'expected': receipt['revision']})[1],
+            receipt,
+        )
+        status, cleared, _ = self.request(
+            'api/save',
+            payload={
+                **payload,
+                'expected': receipt['revision'],
+                'navigation': {'links': [], 'themes': []},
+            },
+        )
+        self.assertEqual(status, 200, cleared)
+        self.assertEqual(read_note(self.root, note['note'])['navigation'], note['navigation'])
+        self.assertEqual(len(note_history(self.root, note['note'])), 3)
+        for path, content in before.items():
+            if path != 'notes/registry.json':
+                self.assertEqual(self.files()[path], content)
+
+    def test_empty_organisation_does_not_revise_legacy_notes(self):
+        payload = {
+            'note': self.original['note'],
+            'expected': self.original['revision'],
+            'title': self.original['title'],
+            'body': self.original['body'],
+            'navigation': {'links': [], 'themes': []},
+        }
+        before = self.files()
+        status, saved, _ = self.request('api/save', payload=payload)
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved['revision'], self.original['revision'])
+        self.assertEqual(self.files(), before)
+
+    def test_stale_navigation_is_not_an_identical_retry_when_text_matches(self):
+        payload = {
+            'note': self.original['note'],
+            'expected': self.original['revision'],
+            'body': self.original['body'],
+            'title': self.original['title'],
+        }
+        target = create_note(self.root, 'A separate context.')
+        nav = {'themes': [], 'links': [{'note': target['note'], 'reason': 'First explanation.'}]}
+        status, first, _ = self.request('api/save', payload={**payload, 'navigation': nav})
+        self.assertEqual(status, 200, first)
+        before = self.files()
+        for other in (
+            payload,
+            {**payload, 'navigation': {'themes': [], 'links': []}},
+            {
+                **payload,
+                'navigation': {
+                    'themes': [],
+                    'links': [{'note': target['note'], 'reason': 'Different explanation.'}],
+                },
+            },
+        ):
+            status, conflict, _ = self.request('api/save', payload=other)
+            self.assertEqual(status, 409, conflict)
+            self.assertEqual(conflict['current']['navigation'], nav)
+        self.assertEqual(self.files(), before)
+
+    def test_invalid_navigation_never_writes_or_accepts_declaration_changes(self):
+        target = create_note(self.root, 'A separate context.')
+        link = {'note': target['note'], 'reason': 'Context'}
+        before = self.files()
+        for navigation in (
+            None,
+            [],
+            {'links': []},
+            {'themes': [], 'links': [], 'declarations': []},
+            {'themes': [], 'links': [link, link]},
+            {'themes': [], 'links': [{'note': target['note'], 'reason': '  '}]},
+            {
+                'themes': [],
+                'links': [{'note': 'urn:knot:note:' + str(uuid4()), 'reason': 'Missing'}],
+            },
+            {'themes': [], 'links': [{'note': self.original['note'], 'reason': 'Self'}]},
+            {'themes': [{'id': 'unknown', 'label': 'Unknown'}], 'links': []},
+            {
+                'themes': [],
+                'links': [{'note': target['note'], 'reason': 'x', 'status': 'Accepted'}],
+            },
+        ):
+            with self.subTest(navigation=navigation):
+                status, error, _ = self.request(
+                    'api/save',
+                    payload={
+                        'note': self.original['note'],
+                        'expected': self.original['revision'],
+                        'title': self.original['title'],
+                        'body': self.original['body'],
+                        'navigation': navigation,
+                    },
+                )
+                self.assertIn(status, (400, 422), error)
+        self.assertEqual(self.files(), before)
+
+    def test_theme_choices_are_fresh_read_only_and_saved_memberships_can_be_retained(self):
+        old = {'id': 'gardens', 'label': 'Gardens'}
+        add_themes(self.root, [old])
+        note = create_note(
+            self.root, 'Context.', navigation={'themes': [old], 'links': [], 'declarations': []}
+        )
+        self.assertEqual(self.request('api/themes')[1]['themes'], [old])
+        self.assertEqual(self.request('api/themes', headers={'X-Knot-Session': ''})[0], 403)
+        current = {'id': 'gardens', 'label': 'Garden observations'}
+        catalogue = self.root / 'organisation/catalogue.json'
+        catalogue.write_text(json.dumps({'themes': [current]}))
+        before = self.files()
+        self.assertEqual(self.request('api/themes')[1]['themes'], [current])
+        self.assertEqual(self.files(), before)
+        payload = {
+            'note': note['note'],
+            'expected': note['revision'],
+            'title': note['title'],
+            'body': 'More context.',
+            'navigation': {'themes': [old], 'links': []},
+        }
+        self.assertEqual(self.request('api/save', payload=payload)[0], 200)
+        forged = {
+            'note': 'urn:knot:note:' + str(uuid4()),
+            'body': 'New.',
+            'format': 'markdown',
+            'navigation': {'themes': [old], 'links': []},
+        }
+        self.assertEqual(self.request('api/create', payload=forged)[0], 422)
+
+    def test_create_retry_remains_identical_after_catalogue_changes(self):
+        theme = {'id': 'gardens', 'label': 'Gardens'}
+        add_themes(self.root, [theme])
+        payload = {
+            'note': 'urn:knot:note:' + str(uuid4()),
+            'body': 'New.',
+            'format': 'markdown',
+            'navigation': {'themes': [theme], 'links': []},
+        }
+        status, saved, _ = self.request('api/create', payload=payload)
+        self.assertEqual(status, 200, saved)
+        (self.root / 'organisation/catalogue.json').write_text(json.dumps({'themes': []}))
+        before = self.files()
+        self.assertEqual(self.request('api/create', payload=payload)[1], saved)
         self.assertEqual(self.files(), before)

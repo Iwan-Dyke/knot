@@ -113,6 +113,28 @@ textarea:focus-visible {
 #editor-conflict {
   margin-top: 1rem;
 }
+#editor-organisation {
+  margin: 1rem 0;
+}
+#editor-organisation-fields {
+  min-width: 0;
+  border: 1px solid var(--border);
+}
+.editor-choice {
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+#note-editor .editor-theme {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+#note-editor .editor-theme input {
+  width: auto;
+  margin: 0;
+}
 #authoring-status {
   font-size: 0.85rem;
 }

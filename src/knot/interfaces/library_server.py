@@ -19,6 +19,7 @@ from knot.presentation.library_snapshot import build_snapshot, input_signature
 from knot.presentation.markup import render_markup
 from knot.presentation.styles import selected_theme
 from knot.shared.datasets import cli_data_root
+from knot.writing.navigation import theme_choices, validate_navigation
 from knot.writing.notes import create_note, read_note, save_note
 
 MAX_REQUEST = 1024 * 1024
@@ -42,8 +43,9 @@ def _fields(
     ):
         raise RequestError(400, 'Unexpected or missing request fields')
     for key, value in data.items():
-        if not isinstance(value, str) and not (key in {'title', 'author'} and value is None):
-            raise RequestError(400, f'{key} must be text')
+        expected = dict if key == 'navigation' else str
+        if not isinstance(value, expected) and not (key in {'title', 'author'} and value is None):
+            raise RequestError(400, f'{key} must be {"an object" if expected is dict else "text"}')
 
 
 def _note_id(value: str) -> str:
@@ -59,7 +61,29 @@ def _note_id(value: str) -> str:
 def _editable(note: dict) -> dict:
     if note.get('derivation') is not None:
         raise RequestError(422, 'Curated notes use the source-backed curation workflow')
-    return {key: note[key] for key in ('note', 'revision', 'title', 'body', 'format', 'author')}
+    return {
+        **{key: note[key] for key in ('note', 'revision', 'title', 'body', 'format', 'author')},
+        'navigation': {
+            key: (note.get('navigation') or {}).get(key, []) for key in ('links', 'themes')
+        },
+    }
+
+
+def _navigation_changes(data: dict, previous: dict | None = None) -> dict:
+    if 'navigation' not in data:
+        return {}
+    supplied = data['navigation']
+    if set(supplied) != {'links', 'themes'}:
+        raise RequestError(400, 'Edit note links and theme memberships only')
+    old = (previous or {}).get('navigation')
+    navigation = {**(old or {'links': [], 'themes': [], 'declarations': []}), **supplied}
+    validate_navigation(navigation)
+    if any(link['note'] == data['note'] for link in navigation['links']) and not any(
+        link['note'] == data['note'] for link in (old or {}).get('links', [])
+    ):
+        raise ValueError('Choose another note to link')
+    # Opening an older unorganised note must not itself upgrade its manifest.
+    return {'navigation': navigation} if old is not None or any(navigation.values()) else {}
 
 
 def _receipt(note: dict) -> dict:
@@ -101,45 +125,64 @@ class LibraryServer(ThreadingHTTPServer):
         return model
 
     def create(self, data: dict) -> dict:
-        _fields(data, {'note', 'body', 'format'}, {'title', 'author'})
+        _fields(data, {'note', 'body', 'format'}, {'title', 'author', 'navigation'})
         note_id = _note_id(data['note'])
-        fields = {key: data.get(key) for key in ('title', 'author', 'format')}
+        fields = {
+            **{key: data.get(key) for key in ('title', 'author', 'format')},
+            **_navigation_changes(data),
+        }
         try:
-            saved = create_note(
-                self.root,
-                data['body'],
-                note_id=note_id,
-                agent=AGENT,
-                reason='Created in Library',
-                **fields,
-            )
-        except ValueError as error:
-            if str(error) != 'Note identifier already exists':
-                raise
             saved = read_note(self.root, note_id)
-            # A lost response must not turn a retry into a second logical note.
-            if (
-                saved['parent'] is not None
-                or saved['agent'] != AGENT
-                or any(
-                    saved[key] != value for key, value in {**fields, 'body': data['body']}.items()
+        except ValueError as error:
+            if str(error) != f'Unknown note: {note_id}':
+                raise
+            try:
+                return _receipt(
+                    create_note(
+                        self.root,
+                        data['body'],
+                        note_id=note_id,
+                        agent=AGENT,
+                        reason='Created in Library',
+                        **fields,
+                    )
                 )
-            ):
-                raise _conflict(saved) from error
+            except ValueError as collision:
+                if str(collision) != 'Note identifier already exists':
+                    raise
+                saved = read_note(self.root, note_id)
+        # Recognise a lost response even when the catalogue changed after the write.
+        if (
+            saved['parent'] is not None
+            or saved['agent'] != AGENT
+            or saved.get('navigation') != fields.get('navigation')
+            or any(saved[key] != value for key, value in {**fields, 'body': data['body']}.items())
+        ):
+            raise _conflict(saved)
         return _receipt(saved)
 
     def save(self, data: dict) -> dict:
-        _fields(data, {'note', 'expected', 'body', 'title'})
+        _fields(data, {'note', 'expected', 'body', 'title'}, {'navigation'})
         current = read_note(self.root, _note_id(data['note']))
         _editable(current)
+        previous = current
         if current['revision'] != data['expected']:
-            if (
-                current['parent'] == data['expected']
-                and current['agent'] == AGENT
-                and all(current[key] == data[key] for key in ('title', 'body'))
-            ):
-                return _receipt(current)
-            raise _conflict(current)
+            if current['parent'] != data['expected'] or current['agent'] != AGENT:
+                raise _conflict(current)
+            previous = read_note(self.root, data['note'], revision=data['expected'])
+        changes = _navigation_changes(data, previous)
+        if current['revision'] != data['expected']:
+            intended = {
+                **{
+                    key: previous.get(key)
+                    for key in ('format', 'author', 'kind', 'entities', 'navigation')
+                },
+                **{key: data[key] for key in ('title', 'body')},
+                **changes,
+            }
+            if any(current.get(key) != value for key, value in intended.items()):
+                raise _conflict(current)
+            return _receipt(current)
         try:
             saved = save_note(
                 self.root,
@@ -149,6 +192,7 @@ class LibraryServer(ThreadingHTTPServer):
                 expected=data['expected'],
                 agent=AGENT,
                 reason='Edited in Library',
+                **changes,
             )
         except ValueError as error:
             if str(error) == 'Note head changed; reload before saving':
@@ -243,6 +287,8 @@ class LibraryHandler(BaseHTTPRequestHandler):
                     return
                 if self.command == 'GET' and route == 'api/snapshot' and not query:
                     result = self.server.snapshot()
+                elif self.command == 'GET' and route == 'api/themes' and not query:
+                    result = {'themes': theme_choices(self.server.root)}
                 elif (
                     self.command == 'GET'
                     and route == 'api/note'

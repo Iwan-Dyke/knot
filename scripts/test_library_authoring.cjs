@@ -22,7 +22,9 @@ import json, sys
 from pathlib import Path
 from knot.writing.notes import create_note
 from knot.curating.provenance import source_pin
+from knot.writing.themes import add_themes
 root = Path(sys.argv[1])
+add_themes(root, [{'id': 'gardens', 'label': 'Gardens'}, {'id': 'ideas', 'label': 'Ideas'}])
 plain = create_note(root, 'First paragraph.\\r\\n\\r\\nCafé 🌿', author='Example writer')
 org = create_note(root, '* Heading\\n\\nAn Org observation.', title='Org account', format='org')
 curated = create_note(root, 'A qualified restatement.', title='Curated account', author='Example curator', agent='Test', derivation={'method': 'faithful_restatement', 'qualification': 'One account.', 'sources': [source_pin(root, plain['revision'], 'First paragraph.', 0)]})
@@ -91,6 +93,15 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
       await tab.waitForFunction(() => !document.getElementById('note-editor').open);
       assert.equal(await tab.locator('#authoring-status').innerText(), 'Saved.');
     };
+    const organise = async (tab) => {
+      await tab.locator('#editor-organisation > summary').click();
+      await tab.getByLabel('Gardens', { exact: true }).waitFor();
+    };
+    const connect = async (tab, query, title, reason) => {
+      await tab.locator('#editor-link-search').fill(query);
+      await tab.getByRole('button', { name: 'Link ' + title, exact: true }).click();
+      await tab.getByLabel('Why connect to ' + title + '?', { exact: true }).fill(reason);
+    };
     await page.goto(url);
     assert.equal(await page.locator('#new-note').isVisible(), true);
     await choose(page, ids.plain);
@@ -110,6 +121,16 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
     const original =
       '## Observation\n\nCafé 🌿 — a first paragraph.\n\nA second paragraph.\n\n<script>window.injected = true</script>\n\n![external](https://invalid.example/track.png)';
     await page.locator('#editor-body').fill(original);
+    await organise(page);
+    await connect(page, 'Org observation', 'Org account', 'A related observation.');
+    await page.getByLabel('Why connect to Org account?', { exact: true }).fill('   ');
+    await page.locator('#editor-save').click();
+    assert.equal(notes().length, 3, 'A connection needs a nonblank explanation');
+    await page
+      .getByLabel('Why connect to Org account?', { exact: true })
+      .fill('A related observation.');
+    await page.getByLabel('Gardens', { exact: true }).check();
+    await page.getByLabel('Ideas', { exact: true }).check();
     await page.locator('#editor-preview-toggle').click();
     await page.locator('#editor-preview h2').waitFor();
     assert.equal(await page.locator('#editor-preview script, #editor-preview img').count(), 0);
@@ -120,17 +141,35 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
     assert.equal(await page.locator('#selection-title').innerText(), 'An emerging idea');
     assert.ok((await page.locator('#reader-panel').innerText()).includes('A second paragraph.'));
     assert.equal(history(created)[0].body, original);
+    assert.deepEqual(history(created)[0].navigation.links, [
+      { note: ids.org, reason: 'A related observation.' },
+    ]);
+    assert.equal(history(created)[0].navigation.themes.length, 2);
+    assert.equal(history(ids.org).length, 1, 'Linking never rewrites the target');
+    await choose(page, ids.org);
+    assert.ok((await page.locator('#context-content').innerText()).includes('An emerging idea'));
+    await choose(page, created);
     await page.locator('#knowledge-search').fill('emerging idea');
     await page.waitForFunction(() =>
       document.getElementById('search-results').innerText.includes('An emerging idea'),
     );
     await page.locator('#edit-note').click();
     await page.locator('#editor-title').fill('A developed idea');
+    await organise(page);
+    await page.locator('#editor-link-search').fill('emerging idea');
+    assert.equal(
+      await page.locator('#editor-link-results button').count(),
+      0,
+      'Exclude the current note',
+    );
+    assert.equal(await page.getByLabel('Ideas', { exact: true }).isChecked(), true);
+    await page.getByLabel('Why connect to Org account?', { exact: true }).fill('Expanded context.');
     await page.locator('#editor-body').fill('## Development\n\nStill a qualified observation.');
     await saved(page);
     assert.equal(await page.locator('#selection-title').innerText(), 'A developed idea');
     assert.equal(history(created).length, 2);
     assert.equal(history(created)[0].body, original);
+    assert.equal(history(created).at(-1).navigation.links[0].reason, 'Expanded context.');
     await page.locator('#explore-selection').click();
     assert.equal(
       await page.evaluate(
@@ -150,6 +189,12 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
     await choose(second, created);
     await page.locator('#edit-note').click();
     await second.locator('#edit-note').click();
+    await organise(page);
+    await organise(second);
+    await page.getByLabel('Why connect to Org account?', { exact: true }).fill('First connection.');
+    await second
+      .getByLabel('Why connect to Org account?', { exact: true })
+      .fill('Draft connection.');
     await page.locator('#editor-body').fill('First writer wins.');
     await second.locator('#editor-body').fill('Second writer keeps this draft.');
     let releasePreview, previewReceived;
@@ -189,6 +234,15 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
       'Second writer keeps this draft.',
     );
     assert.equal(await second.locator('#editor-current-body').innerText(), 'First writer wins.');
+    assert.ok(
+      (await second.locator('#editor-current-navigation').innerText()).includes(
+        'First connection.',
+      ),
+    );
+    assert.equal(
+      await second.getByLabel('Why connect to Org account?', { exact: true }).inputValue(),
+      'Draft connection.',
+    );
     assert.equal(history(created).at(-1).body, 'First writer wins.');
     second.once('dialog', (dialog) => dialog.dismiss());
     await second.locator('#editor-cancel').click();
@@ -199,14 +253,49 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
       () => document.getElementById('editor-body').value === 'First writer wins.',
     );
     await second.locator('#editor-body').fill('Both observations reconciled explicitly.');
+    await organise(second);
+    assert.equal(
+      await second.getByLabel('Why connect to Org account?', { exact: true }).inputValue(),
+      'First connection.',
+    );
+    await second.getByRole('button', { name: 'Remove link to Org account', exact: true }).click();
+    await second.getByLabel('Gardens', { exact: true }).uncheck();
+    await second.getByLabel('Ideas', { exact: true }).uncheck();
     await saved(second);
     assert.equal(history(created).at(-1).body, 'Both observations reconciled explicitly.');
+    assert.deepEqual(history(created).at(-1).navigation.links, []);
+    assert.deepEqual(history(created).at(-1).navigation.themes, []);
     await second.close();
+
+    await page.locator('#edit-note').click();
+    await organise(page);
+    await page.getByLabel('Gardens', { exact: true }).check();
+    page.once('dialog', (dialog) => dialog.dismiss());
+    await page.locator('#editor-cancel').click();
+    assert.equal(
+      await page.locator('#note-editor').isVisible(),
+      true,
+      'Organisation alone makes a dirty draft',
+    );
+    const beforeOrganisation = history(created).length;
+    await saved(page);
+    assert.equal(history(created).length, beforeOrganisation + 1);
+    assert.equal(history(created).at(-1).body, 'Both observations reconciled explicitly.');
+    await page.locator('#edit-note').click();
+    await saved(page);
+    assert.equal(
+      history(created).length,
+      beforeOrganisation + 1,
+      'Opening organisation does not add a revision',
+    );
 
     const beforeRetry = notes().length;
     await page.locator('#new-note').click();
     await page.locator('#editor-title').fill('Retry safely');
     await page.locator('#editor-body').fill('A response can be lost after saving.');
+    await organise(page);
+    await connect(page, 'Org observation', 'Org account', 'Retry this connection too.');
+    await page.getByLabel('Ideas', { exact: true }).check();
     await page.route('**/api/create', async (route) => {
       await route.fetch();
       await route.abort('failed');
@@ -221,8 +310,42 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
       'A response can be lost after saving.',
     );
     await page.unroute('**/api/create');
+    python(`
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1]) / 'organisation/catalogue.json'
+catalogue = json.loads(path.read_text())
+catalogue['themes'] = [t for t in catalogue['themes'] if t['id'] != 'ideas']
+path.write_text(json.dumps(catalogue))
+`);
     await saved(page);
     assert.equal(notes().length, beforeRetry + 1, 'Retry did not duplicate the note');
+    const retried = await page.evaluate(() => knotLibrary.selection.id);
+    await page.locator('#edit-note').click();
+    await organise(page);
+    assert.ok(
+      (await page.locator('#editor-themes').innerText()).includes('no longer in the catalogue'),
+    );
+    assert.equal(await page.getByLabel('Ideas', { exact: true }).isChecked(), true);
+    await page.locator('#editor-body').fill('Retain this older membership.');
+    await saved(page);
+    assert.deepEqual(history(retried).at(-1).navigation.themes, [{ id: 'ideas', label: 'Ideas' }]);
+    await page.route('**/api/themes', (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Synthetic catalogue failure' }),
+      }),
+    );
+    await page.locator('#edit-note').click();
+    await page.locator('#editor-organisation > summary').click();
+    await page.locator('#editor-theme-retry').waitFor();
+    assert.equal(await page.getByLabel('Ideas', { exact: true }).isChecked(), true);
+    await page.unroute('**/api/themes');
+    await page.locator('#editor-theme-retry').click();
+    await page.getByLabel('Gardens', { exact: true }).waitFor();
+    await saved(page);
+    assert.equal(history(retried).length, 2);
 
     const beforeRefresh = notes().length;
     await page.locator('#new-note').click();
@@ -241,6 +364,7 @@ print(json.dumps({'plain': plain['note'], 'revision': plain['revision'], 'org': 
     );
     assert.equal(notes().length, beforeRefresh + 1);
     assert.equal(await page.locator('#editor-body').isDisabled(), true);
+    assert.equal(await page.locator('#editor-link-search').isDisabled(), true);
     await page.unroute('**/api/snapshot');
     await saved(page);
     assert.equal(notes().length, beforeRefresh + 1);
@@ -273,6 +397,15 @@ create_note(sys.argv[1], 'Garden project is a proposal.', title='External projec
     );
     await page.locator('#idle-exit').click();
     await page.waitForFunction(() => knotLibrary.selection.view === 'library');
+    await choose(page, ids.org);
+    await page.locator('#edit-note').click();
+    await organise(page);
+    await page.locator('#editor-link-search').fill('Garden project is a proposal');
+    assert.equal(
+      await page.getByRole('button', { name: 'Link External project', exact: true }).count(),
+      1,
+    );
+    await page.locator('#editor-cancel').click();
     await choose(page, ids.curated);
     assert.equal(await page.locator('#edit-note').isVisible(), false);
     await choose(page, ids.plain, ids.revision);
@@ -307,6 +440,7 @@ create_note(sys.argv[1], 'Garden project is a proposal.', title='External projec
     await page.goto(pathToFileURL(path.join(folder, 'offline.html')).href);
     assert.equal(await page.locator('#new-note').isVisible(), false);
     assert.equal(await page.evaluate(() => knotLibrary.index.model.authoring), undefined);
+    assert.equal(await page.evaluate(() => typeof LibraryOrganisation), 'undefined');
     assert.equal(pageErrors.length, 0, pageErrors.join('\n'));
     console.log(
       'Local Library create/read/edit/save, conflicts, retries, preview, Org, navigation and offline boundaries passed. Artifacts: ' +

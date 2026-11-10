@@ -3,7 +3,8 @@ const LibraryAuthoring = (() => {
   function create(index, { selection, refresh }) {
     const $ = (id) => document.getElementById(id),
       config = index.model.authoring,
-      dialog = $('note-editor');
+      dialog = $('note-editor'),
+      organisation = LibraryOrganisation.create(index, request);
     let draft = null,
       baseline = '',
       busy = false,
@@ -43,10 +44,12 @@ const LibraryAuthoring = (() => {
         $('editor-body').value,
         $('editor-author').value,
         $('editor-format').value,
+        organisation.value(),
       ]);
     const dirty = () => dialog.open && values() !== baseline;
     function lock(value) {
       busy = value;
+      organisation.lock(value);
       for (const id of [
         'editor-save',
         'editor-cancel',
@@ -79,6 +82,7 @@ const LibraryAuthoring = (() => {
       $('editor-preview').hidden = true;
       $('editor-preview-toggle').setAttribute('aria-expanded', 'false');
       $('editor-save').textContent = 'Save note';
+      organisation.reset(note);
       baseline = values();
       if (!dialog.open) dialog.showModal();
       $('editor-title').focus();
@@ -110,6 +114,7 @@ const LibraryAuthoring = (() => {
     }
     async function save() {
       if (busy) return;
+      if (!committed && !organisation.valid()) return;
       previewSequence++;
       lock(true);
       $('editor-status').textContent = committed ? 'Refreshing Library…' : 'Saving…';
@@ -119,6 +124,7 @@ const LibraryAuthoring = (() => {
             note: draft.note,
             title: $('editor-title').value || null,
             body: body(),
+            navigation: organisation.value(),
             ...(draft.creating
               ? { author: $('editor-author').value || null, format: $('editor-format').value }
               : { expected: draft.revision }),
@@ -141,12 +147,14 @@ const LibraryAuthoring = (() => {
           if (error.current) {
             $('editor-current-title').textContent = error.current.title || 'Untitled note';
             $('editor-current-body').textContent = error.current.body;
+            organisation.comparison(error.current.navigation);
             $('editor-conflict').hidden = false;
           }
         }
       } finally {
         lock(false);
         if (committed && dialog.open) {
+          organisation.lock(true);
           for (const id of ['editor-title', 'editor-body', 'editor-author', 'editor-format'])
             $(id).disabled = true;
         }

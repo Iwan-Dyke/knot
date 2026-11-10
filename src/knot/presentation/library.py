@@ -51,7 +51,11 @@ def render_snapshot(model, *, visual_theme='matrix'):
                 'library_idle.js',
                 'library_navigation.js',
             )
-            + (('library_authoring.js',) if model.get('authoring') else ())
+            + (
+                ('library_organisation.js', 'library_authoring.js')
+                if model.get('authoring')
+                else ()
+            )
             + ('library.js',)
         ),
         'KNOT_CONNECT': "'self'" if model.get('authoring') else "'none'",

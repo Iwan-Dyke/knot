@@ -290,6 +290,21 @@
       </div>
       <label for="editor-body">Note</label>
       <textarea id="editor-body" rows="15" spellcheck="true"></textarea>
+      <details id="editor-organisation">
+        <summary>Connections and themes (optional)</summary>
+        <fieldset id="editor-organisation-fields">
+          <legend>Organise this note</legend>
+          <h3>Connections</h3>
+          <div id="editor-links"></div>
+          <label for="editor-link-search">Find a note to connect</label>
+          <input id="editor-link-search" type="search" autocomplete="off" />
+          <div id="editor-link-results"></div>
+          <h3>Themes</h3>
+          <p id="editor-theme-status" role="status"></p>
+          <button id="editor-theme-retry" type="button" hidden>Retry theme choices</button>
+          <div id="editor-themes"></div>
+        </fieldset>
+      </details>
       <div class="button-row">
         <button id="editor-preview-toggle" aria-expanded="false" aria-controls="editor-preview">
           Preview
@@ -304,6 +319,7 @@
         <p>Your draft is still in the editor. Copy any text you want to keep before reloading.</p>
         <h4 id="editor-current-title"></h4>
         <pre id="editor-current-body"></pre>
+        <div id="editor-current-navigation"></div>
         <button id="editor-reload">Discard draft and load latest</button>
       </section>
     </dialog>
