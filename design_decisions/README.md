@@ -12,6 +12,7 @@ operate them. The [release checklist](../docs/release.md) tracks pending deliver
 | Storage, source preservation and native notes | [0002](0002-portable-rdf-storage.md), [0009](0009-auditable-archive-migration.md), [0022](0022-native-free-text-knowledge-and-entity-notes.md) |
 | Claims, reviews and identity | [0003](0003-assertions-and-provenance.md), [0010](0010-persistent-assertion-review.md), [0011](0011-resolve-confirmed-identities-in-query-view.md), [0029](0029-semantic-integrity-and-explicit-identity-resolution.md) |
 | Organisation and frameworks | [0012](0012-use-career-framework-for-competencies.md), [0013](0013-preserve-framework-definitions-as-assertions.md), [0016](0016-basic-ontology-and-overlapping-themes.md), [0017](0017-review-theme-membership-separately.md) |
+| Ontology evolution and deterministic evaluation (proposed) | [0051](0051-reviewed-ontology-evolution.md), [0052](0052-bounded-deterministic-evaluation.md) |
 | Retrieval and discovery | [0019](0019-bounded-knowledge-retrieval-for-ai-context.md), [0020](0020-question-aware-hybrid-retrieval.md), [0023](0023-broad-discovery-and-selected-subject-retrieval.md), [0039](0039-share-retrieval-provenance-without-dropping-evidence.md) |
 | Authoring and AI access | [0021](0021-scoped-local-mcp-server.md), [0025](0025-owner-local-note-cli.md), [0032](0032-guided-zettelkasten-authoring.md), [0033](0033-owner-mcp-authoring-and-runtime-diagnostics.md), [0050](0050-owner-local-library-authoring.md) |
 | Curation and naming | [0027](0027-source-preserving-knowledge-curation.md), [0028](0028-meaningful-entity-names-and-value-presentation.md), [0030](0030-continuous-knowledge-curation.md), [0046](0046-guided-source-backed-curation.md) |
@@ -47,6 +48,9 @@ Important relationships:
   0049 separates terminal workflows and presentation state within those packages.
 - 0047 makes Graph/Library the default viewer, retaining 0026/0035's earlier viewer
   through `--legacy` and reusing its knowledge/filtering contracts.
+- 0051 and 0052 propose reviewed ontology changes and bounded rule evaluation,
+  drawing on COA and STRIDE while retaining existing source, review and access
+  contracts. Both are unimplemented proposals; neither supersedes those contracts.
 
 ## Decision register
 
@@ -109,6 +113,8 @@ not current command references; use the linked guides for today's behaviour.
 | [0048](0048-idle-mode-autonomous-knowledge-exploration.md) | Cinematic exploration of existing knowledge in Idle | Accepted | Implemented; extended performance and accessibility validation pending |
 | [0049](0049-explicit-workflow-and-presentation-boundaries.md) | Separate terminal workflows, navigation, styles and ordered audit/retrieval stages | Accepted | Implemented |
 | [0050](0050-owner-local-library-authoring.md) | Write ordinary notes from an optional local Library | Accepted | Implemented, including note links and theme memberships; curation and review editing remain separate |
+| [0051](0051-reviewed-ontology-evolution.md) | Evolve the ontology through reviewed proposals | Proposed | Not started |
+| [0052](0052-bounded-deterministic-evaluation.md) | Evaluate reviewed evidence with bounded deterministic rules | Proposed | Not started |
 
 ## Add or revise a decision
 
