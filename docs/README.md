@@ -29,6 +29,14 @@ unimplemented release work is listed separately in [release preparation](release
 - [Release preparation](release.md): remaining work before a public release.
 - [Experiment outcomes](../design_decisions/0042-retire-experiments-and-export-tool-only.md): retained improvements, rejected approaches and cleanup decisions.
 
+## Proposed architecture
+
+[Reviewed ontology evolution](../design_decisions/0051-reviewed-ontology-evolution.md)
+and [bounded deterministic evaluation](../design_decisions/0052-bounded-deterministic-evaluation.md)
+record proposed principles inspired by AWS's Context Ontology Accelerator and
+UnlikelyAI's STRIDE. They describe future work, including its limits and validation
+criteria; neither workflow is implemented or part of the current command/API surface.
+
 ## Reading examples
 
 Commands run from the repository root unless stated otherwise. `just` recipes use
