@@ -52,13 +52,10 @@ def _entity_ids(entities):
     return sorted(set(entities))
 
 
-def _canonical_entities(root, entities):
+def _entity_view(root):
     from knot.graph.query import identity_bindings, load_store
     from knot.shared.vocabulary import TYPES
 
-    entities = _entity_ids(entities)
-    if not entities:
-        return []
     store = load_store(Path(root) / 'graph', include_notes=False, allow_empty=True)
     bindings = identity_bindings(store)
     sources = {
@@ -88,6 +85,14 @@ def _canonical_entities(root, entities):
         for n in list_notes(root)
         for e in n.get('navigation', {}).get('declarations', [])
     )
+    return bindings, known
+
+
+def _canonical_entities(root, entities, *, view=None):
+    entities = _entity_ids(entities)
+    if not entities:
+        return []
+    bindings, known = _entity_view(root) if view is None else view
     resolved = {bindings.get(NamedNode(entity), NamedNode(entity)) for entity in entities}
     if not resolved <= known:
         raise ValueError('Note associations require existing entity IRIs in the identity view')

@@ -178,5 +178,10 @@ Historical label and timestamp notices are informational. These diagnostics are 
 an owner decision queue or a knowledge-quality score. Output must be outside the
 data root and must not overwrite its baseline.
 
+An audit reuses its entity view and verified source reader within that run, while
+checking every committed note revision and derivation pin. It does not retain a
+cache between runs or change source, review or access records. Large histories
+still take longer; let the command finish before interpreting its report.
+
 The [continuous curation standard](../design_decisions/0030-continuous-knowledge-curation.md)
 defines what is enforced, what is advisory and what requires human judgement.

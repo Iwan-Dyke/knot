@@ -540,6 +540,53 @@ class QualityTests(unittest.TestCase):
             },
         )
 
+    def test_audit_reuses_views_across_distinct_notes_and_associations(self):
+        from knot.graph.query import load_store
+        from knot.writing.sources import add_note_sources
+
+        data = Dataset()
+        for index in range(6):
+            data.add(f'urn:example:entity:{index}', LABEL, f'Component {index}', literal=True)
+        self.write_graph(data)
+        for index in range(6):
+            source = create_note(
+                self.root,
+                f'Component {index} has a reported observation.',
+                entities=[f'urn:example:entity:{index}'],
+            )
+            self.curate(source)
+        before = self.files()
+        with (
+            patch('knot.graph.query.load_store', wraps=load_store) as loads,
+            patch('knot.quality.add_note_sources', wraps=add_note_sources) as projections,
+        ):
+            result = audit(self.root)
+        self.assertEqual(result['errors'], [])
+        self.assertEqual(result['counts']['current_valid_curated_notes'], 6)
+        self.assertEqual(result['counts']['native_revisions'], 12)
+        self.assertEqual(self.files(), before)
+        # Whole-dataset setup must not repeat for every distinct note or association.
+        self.assertLessEqual(loads.call_count, 2)
+        self.assertLessEqual(projections.call_count, 2)
+
+    def test_audit_reports_each_invalid_association_after_reusing_valid_view(self):
+        data = Dataset()
+        for index in range(3):
+            data.add(f'urn:example:entity:{index}', LABEL, f'Component {index}', literal=True)
+        self.write_graph(data)
+        notes = [
+            create_note(self.root, f'Observation {i}', entities=[f'urn:example:entity:{i}'])
+            for i in range(3)
+        ]
+        retained = Dataset()
+        retained.add('urn:example:entity:0', LABEL, 'Component 0', literal=True)
+        self.write_graph(retained)
+        before = self.files()
+        result = audit(self.root)
+        invalid = {f['record'] for f in result['errors'] if f['code'] == 'invalid_note_association'}
+        self.assertEqual(invalid, {n['revision'] for n in notes[1:]})
+        self.assertEqual(self.files(), before)
+
     def test_curated_capture_is_counted_without_warning_until_source_body_changes(self):
         original = create_note(self.root, 'Can you add this observation?')
         self.curate(original)

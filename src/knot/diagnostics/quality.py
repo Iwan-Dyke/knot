@@ -23,7 +23,7 @@ from knot.reviewing.state import apply_reviews, read_events
 from knot.shared.datasets import cli_data_root
 from knot.shared.storage import digest, managed_path
 from knot.shared.vocabulary import TYPES
-from knot.writing.notes import REVISION, _canonical_entities, _history, _registry
+from knot.writing.notes import REVISION, _canonical_entities, _entity_view, _history, _registry
 from knot.writing.sources import add_note_sources
 
 GENERIC_NAMES = {'result', 'update', 'meeting', 'question', 'action', 'notes', 'untitled'}
@@ -368,7 +368,7 @@ def _audit_graph(root, counts, report):
     )
 
 
-def _audit_notes(root, counts, report):
+def _audit_notes(root, graph, counts, report):
     revisions, bodies = {}, defaultdict(set)
     valid_derivations, conversational = set(), []
     try:
@@ -377,28 +377,40 @@ def _audit_notes(root, counts, report):
         report('errors', 'invalid_note_registry', 'notes/registry.json', error)
         registry = {'notes': {}}
     counts['native_notes'] = len(registry['notes'])
-    association_checks = set()
+    histories = []
     for note in sorted(registry['notes']):
         try:
             history = _history(root, note, registry)
         except READ_ERRORS as error:
             report('errors', 'invalid_note_history', note, error)
             continue
+        histories.append((note, history))
         for saved in history:
             revision = saved['revision']
             revisions[revision] = saved
             bodies[saved['body_sha256']].add(revision)
+
+    _audit_native_sources(root, graph.store, revisions, report)
+    association_checks = set()
+    entity_view, reader = None, None
+    for note, history in histories:
+        for saved in history:
+            revision = saved['revision']
             entities = tuple(saved['entities'])
             if entities not in association_checks:
                 association_checks.add(entities)
                 try:
-                    _canonical_entities(root, entities)
+                    if entities and entity_view is None:
+                        entity_view = _entity_view(root)
+                    _canonical_entities(root, entities, view=entity_view)
                 except READ_ERRORS as error:
                     report('errors', 'invalid_note_association', revision, error)
             derivation = saved.get('derivation')
             if derivation:
                 try:
-                    validate_sources(root, derivation['sources'])
+                    if reader is None:
+                        reader = _Evidence(root, graph.store, verify_derivation=False)
+                    validate_sources(root, derivation['sources'], reader=reader)
                     valid_derivations.add(revision)
                 except READ_ERRORS as error:
                     report('errors', 'invalid_derivation', revision, error)
@@ -452,15 +464,30 @@ def _audit_notes(root, counts, report):
     return _NoteAudit(revisions, bodies)
 
 
-def _audit_evidence(root, graph, notes, counts, report):
-    store, revisions, bodies = graph.store, notes.revisions, notes.bodies
-    evidence_claims, active_assertions = graph.evidence_claims, graph.active_assertions
+def _audit_native_sources(root, store, revisions, report):
     # This is an owner-local audit; admitting historical sources here does not widen MCP grants.
+    admitted = set()
     for revision in sorted(revisions):
+        if revision in admitted:
+            continue
         try:
             add_note_sources(root, store, store, {}, note_revision=revision)
+            # The adapter also verifies registered revisions, current heads and their inputs.
+            # Reproject only historical revisions it has not already admitted in this run.
+            admitted.update(
+                q.subject.value
+                for q in store.quads_for_pattern(
+                    None, NamedNode(VOCAB + 'snapshotPath'), None, META
+                )
+                if values(store, q.subject.value, VOCAB + 'noteMetadata')
+            )
         except READ_ERRORS as error:
             report('errors', 'invalid_native_source', revision, error)
+
+
+def _audit_evidence(root, graph, notes, counts, report):
+    store, bodies = graph.store, notes.bodies
+    evidence_claims, active_assertions = graph.evidence_claims, graph.active_assertions
     try:
         annotated = annotate_accounts(
             root, store, [{'id': assertion} for assertion in sorted(active_assertions)]
@@ -774,7 +801,7 @@ def audit(root):
 
     # Evidence populates the verification view before identity and semantic checks.
     graph = _audit_graph(root, counts, report)
-    notes = _audit_notes(root, counts, report)
+    notes = _audit_notes(root, graph, counts, report)
     quotes = _audit_evidence(root, graph, notes, counts, report)
     names = _audit_semantics(root, graph, quotes, counts, report)
     _audit_associations(graph, notes, names, report)
