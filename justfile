@@ -72,6 +72,9 @@ curate +args:
 benchmark-retrieval *args:
     PYTHONPATH=src .venv/bin/python -m knot.diagnostics.benchmark "$@"
 
+benchmark-coverage *args:
+    PYTHONPATH=src .venv/bin/python -m knot.diagnostics.coverage_benchmark "$@"
+
 mcp *args:
     PYTHONPATH=src .venv/bin/python -m knot.interfaces.mcp_server "$@"
 
