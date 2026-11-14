@@ -32,7 +32,7 @@ validated knowledge. References below identify the inspected revision.
 Propose a bounded workflow for vocabulary evolution. AI assistance may prepare
 alternatives and examples; authorised review determines which meanings are adopted.
 Manual proposals use the same process. Evaluation rules consuming the resulting
-vocabulary are a separate proposal in ADR 0052.
+vocabulary are a separate decision in ADR 0052.
 
 ### Describe a concrete gap
 

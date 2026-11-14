@@ -34,6 +34,7 @@ All implementation paths are under `src/knot/`.
 | `ingestion/` | Archive inventory, conversion and framework extraction |
 | `graph/` | RDF vocabulary/helpers, query loading, organisation and theme review |
 | `retrieval_engine/` | Retrieval coordination, graph/text search, discovery, selection and response budgets |
+| `evaluation/` | Typed coverage rule, scoped views, input manifests, deterministic receipts and CLI |
 | `interfaces/` | CLI adapters, terminal authoring/curation workflows, MCP and source access grants |
 | `presentation/` | Verified offline snapshots, Library/Graph renderers and legacy viewer |
 | `diagnostics/` | Integrity/quality diagnostics and benchmark interfaces |
@@ -86,6 +87,21 @@ Retrieval filters permitted sources before ranking and traversal, verifies evide
 and returns complete evidence packages under explicit budgets. Missing context is
 reported as omissions. An MCP grant limits returned information; it is not an
 operating-system sandbox for the local process.
+
+The [evaluation pilot](evaluation.md) reads original assertions after review replay,
+enumerates a declared finite scope and reuses source verification. It does not use
+ranked retrieval as evidence of completeness. Its first rule runs through the
+owner CLI and read-only `knot_evaluate` MCP tool. Scoped calls use a granted-source
+view and return unknown for missing mappings. The permitted view and verified
+source hashes are rechecked before returning a receipt; evaluation writes no
+knowledge or reviews. Output limits produce abstention rather than partial proof.
+
+[Decision explanations](explanations.md) reuse curated-note revisions through
+`evaluation/explanations.py`. Owner-local previews and explicit approval/withdrawal
+events are separate from assertion reviews; they share the existing review lock.
+`knot_explain` is read-only and returns approved wording, its sources and scoped
+freshness. It cannot publish or approve knowledge. Per-request event chains and
+the permitted source view are rechecked before answers are returned.
 
 ## Dataset and presentation boundaries
 

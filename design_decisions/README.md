@@ -12,7 +12,7 @@ operate them. The [release checklist](../docs/release.md) tracks pending deliver
 | Storage, source preservation and native notes | [0002](0002-portable-rdf-storage.md), [0009](0009-auditable-archive-migration.md), [0022](0022-native-free-text-knowledge-and-entity-notes.md) |
 | Claims, reviews and identity | [0003](0003-assertions-and-provenance.md), [0010](0010-persistent-assertion-review.md), [0011](0011-resolve-confirmed-identities-in-query-view.md), [0029](0029-semantic-integrity-and-explicit-identity-resolution.md) |
 | Organisation and frameworks | [0012](0012-use-career-framework-for-competencies.md), [0013](0013-preserve-framework-definitions-as-assertions.md), [0016](0016-basic-ontology-and-overlapping-themes.md), [0017](0017-review-theme-membership-separately.md) |
-| Ontology evolution and deterministic evaluation (proposed) | [0051](0051-reviewed-ontology-evolution.md), [0052](0052-bounded-deterministic-evaluation.md) |
+| Ontology evolution and STRIDE-inspired evaluation | [0051](0051-reviewed-ontology-evolution.md), [0052](0052-bounded-deterministic-evaluation.md), [0054](0054-checked-coverage-question-answers.md), [0055](0055-current-receipt-revalidation.md), [0056](0056-reviewed-decision-explanations.md), [0057](0057-checked-routing-and-artifact-selection.md), [0058](0058-reviewed-alternative-question-wordings.md), [0059](0059-related-reviewed-question-navigation.md) |
 | Retrieval and discovery | [0019](0019-bounded-knowledge-retrieval-for-ai-context.md), [0020](0020-question-aware-hybrid-retrieval.md), [0023](0023-broad-discovery-and-selected-subject-retrieval.md), [0039](0039-share-retrieval-provenance-without-dropping-evidence.md) |
 | Authoring and AI access | [0021](0021-scoped-local-mcp-server.md), [0025](0025-owner-local-note-cli.md), [0032](0032-guided-zettelkasten-authoring.md), [0033](0033-owner-mcp-authoring-and-runtime-diagnostics.md), [0050](0050-owner-local-library-authoring.md) |
 | Curation and naming | [0027](0027-source-preserving-knowledge-curation.md), [0028](0028-meaningful-entity-names-and-value-presentation.md), [0030](0030-continuous-knowledge-curation.md), [0046](0046-guided-source-backed-curation.md) |
@@ -48,9 +48,15 @@ Important relationships:
   0049 separates terminal workflows and presentation state within those packages.
 - 0047 makes Graph/Library the default viewer, retaining 0026/0035's earlier viewer
   through `--legacy` and reusing its knowledge/filtering contracts.
-- 0051 and 0052 propose reviewed ontology changes and bounded rule evaluation,
-  drawing on COA and STRIDE while retaining existing source, review and access
-  contracts. Both are unimplemented proposals; neither supersedes those contracts.
+- 0051 proposes reviewed ontology changes, drawing on COA. 0052 accepts a
+  STRIDE-inspired bounded evaluator and initial coverage rule, with later
+  capabilities requiring separate decisions. Coverage CLI and scoped MCP are
+  implemented; 0054 adds checked questions and 0055 adds current-receipt revalidation.
+  0056 adds revision-reviewed decision explanations; 0057 adds checked routing and
+  artifact selection. 0058 adds reviewed alternative question wordings for explanations.
+  0059 adds related-question navigation while keeping unsupported requests unanswered.
+  Historical replay remains
+  pending. 0051 remains unimplemented.
 
 ## Decision register
 
@@ -114,7 +120,14 @@ not current command references; use the linked guides for today's behaviour.
 | [0049](0049-explicit-workflow-and-presentation-boundaries.md) | Separate terminal workflows, navigation, styles and ordered audit/retrieval stages | Accepted | Implemented |
 | [0050](0050-owner-local-library-authoring.md) | Write ordinary notes from an optional local Library | Accepted | Implemented, including note links and theme memberships; curation and review editing remain separate |
 | [0051](0051-reviewed-ontology-evolution.md) | Evolve the ontology through reviewed proposals | Proposed | Not started |
-| [0052](0052-bounded-deterministic-evaluation.md) | Evaluate reviewed evidence with bounded deterministic rules | Proposed | Not started |
+| [0052](0052-bounded-deterministic-evaluation.md) | Adopt STRIDE-inspired evaluation of reviewed knowledge | Accepted for bounded evaluator and initial coverage rule | Partial; CLI, scoped MCP, checked questions and current revalidation implemented; historical replay deferred |
+| [0053](0053-question-only-direct-claim-retrieval.md) | Include matching direct claims in question-only hybrid retrieval | Proposed | Bounded default hybrid change implemented; general language understanding remains outside scope |
+| [0054](0054-checked-coverage-question-answers.md) | Check coverage questions before deterministic evaluation | Accepted for initial question contract | Implemented finite templates, exact selections and receipt-derived answers |
+| [0055](0055-current-receipt-revalidation.md) | Revalidate saved receipts against current authorised inputs | Accepted for existing coverage and question contracts | Implemented current recomputation, scoped evidence and explicit comparison states |
+| [0056](0056-reviewed-decision-explanations.md) | Review exact decision explanations before reuse | Accepted for the first bounded explanation contract | Implemented owner review, scoped reuse, withdrawal and revalidation |
+| [0057](0057-checked-routing-and-artifact-selection.md) | Route checked questions and select approved artifacts deterministically | Accepted for existing contracts | Implemented CLI, scoped MCP, selection revalidation and review-chain audit |
+| [0058](0058-reviewed-alternative-question-wordings.md) | Review alternative question wordings with decision explanations | Accepted for decision-explanation wording mappings | Implemented owner review, exact matching, scoped routing and revalidation |
+| [0059](0059-related-reviewed-question-navigation.md) | Offer reviewed questions without interpreting unsupported wording | Accepted for read-only navigation | Implemented bounded alternatives, source/access checks and revalidation |
 
 ## Add or revise a decision
 

@@ -210,6 +210,9 @@ Start with the [documentation index](docs/README.md).
 | Capture, edit and connect notes | [Notes](docs/notes.md) |
 | Curate writing and publish claims | [Curation](docs/curation.md) |
 | Search and retrieve evidence | [Retrieval](docs/retrieval.md) |
+| Ask supported questions with checked routing and selection | [Checked answers](docs/checked-answers.md) |
+| Evaluate reviewed framework mappings or revalidate saved receipts | [Coverage pilot](docs/evaluation.md) |
+| Review and reuse source-backed decision explanations | [Decision explanations](docs/explanations.md) |
 | Connect an AI client | [MCP](docs/mcp.md) |
 | Browse the Library and explore the graph | [Viewer](docs/viewer.md) |
 | Review claims and identities | [Reviews](docs/reviews.md) |
