@@ -1,7 +1,8 @@
 # ADR 0053: Include direct claims in question-only hybrid retrieval
 
-- Status: Proposed
+- Status: Accepted for bounded question-only hybrid retrieval
 - Date: 2026-11-13
+- Decision updated: 2026-11-14
 - Implementation: Bounded default hybrid change implemented under authorised retrieval work
 - Extends: ADRs 0020, 0021, 0023 and 0052
 - Supersedes: The text-only channel description for question-only hybrid requests

@@ -79,9 +79,12 @@ review. A separate prose database would duplicate the existing note lifecycle.
 The small per-request event chain reuses existing files, locks, hashing, source
 verification and scopes without a new dependency or migration.
 
-This first contract requires exact identifiers and manual artifact selection.
-It is less convenient than general conversation. It supports no arbitrary question
-matching, conflict adjudication, historical replay or truth verification. Native
+This artifact contract requires exact identifiers and an explicit revision.
+[ADR 0057](0057-checked-routing-and-artifact-selection.md) supplies a checked router
+that resolves visible names and selects a unique eligible approved artifact;
+ambiguity still requires explicit selection. It is less convenient than general
+conversation. It supports no arbitrary question matching, conflict adjudication,
+historical replay or truth verification. Native
 source edits conservatively require recuration and review; imported sources have
 no inferred logical-head mapping. Stable-read checks are not a transactional
 snapshot or protection against an owner rewriting history and its hashes.

@@ -2,8 +2,8 @@
 
 - Status: Accepted for the bounded evaluator and initial coverage rule; later capabilities require separate decisions
 - Date: 2026-11-12
-- Decision updated: 2026-11-13
-- Implementation: Partial; coverage, checked routing, artifact selection, receipt revalidation and reviewed decision explanations implemented; historical replay and broader rules deferred
+- Decision updated: 2026-11-14
+- Implementation: Partial; coverage, checked routing, artifact selection, receipt revalidation, reviewed decision explanations, alternative wordings and related-question navigation implemented; historical replay and broader rules deferred
 - Related: [ADR 0029](0029-semantic-integrity-and-explicit-identity-resolution.md), [ADR 0030](0030-continuous-knowledge-curation.md), [ADR 0051](0051-reviewed-ontology-evolution.md)
 - Supersedes: None
 
@@ -93,6 +93,15 @@ original question; the guarantee begins at the exact structured request.
 [ADR 0054](0054-checked-coverage-question-answers.md) adds a finite question-template
 adapter with exact visible-name resolution and fixed receipt-derived answers.
 It does not extend the guarantee to arbitrary prose or client-authored reformulations.
+
+[ADR 0057](0057-checked-routing-and-artifact-selection.md) adds checked routing and
+selection of a unique eligible approved explanation, with explicit choices for
+ambiguity. [ADR 0058](0058-reviewed-alternative-question-wordings.md) permits exact
+alternative questions reviewed with that explanation. [ADR 0059](0059-related-reviewed-question-navigation.md)
+offers related reviewed questions when wording is unsupported. Those suggestions
+require explicit user selection; they neither answer nor reinterpret the original
+question. These extensions reuse the existing evidence and approval contracts
+without introducing generated reasoning at execution time.
 
 Each rule declares its finite input scope, supported predicates, allowed kinds
 and origins, temporal interpretation, eligibility conditions and execution limits.

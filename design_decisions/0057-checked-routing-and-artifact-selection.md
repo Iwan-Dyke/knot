@@ -23,8 +23,9 @@ establishing their existence, type or truth.
 For decision explanations, enumerate current visible curated revisions with an
 exact immutable association to that decision. Check their revision-specific
 approval and existing provenance/freshness contract. Return exact text only for
-one eligible artifact. Several require explicit revision selection; none produce
-unknown. More than 100 candidates produces unknown before examining approvals.
+one eligible artifact. Several require explicit revision selection; if none is
+eligible, return unknown. More than 100 candidates produces unknown before
+examining approvals.
 Do not use recency, rank or automatic semantic similarity to break ambiguity.
 
 Capture every candidate's review history before execution and compare it again
@@ -42,6 +43,14 @@ state. Approval remains an explicit owner workflow, separate from answering.
 Extend the existing whole-dataset quality audit to check explanation review
 chains and request-directory placement. Reuse the owning validator rather than
 duplicating event semantics. Integrity checks do not establish semantic truth.
+
+[ADR 0058](0058-reviewed-alternative-question-wordings.md) extends routing to exact
+reviewed alternative questions, with a separate enumeration bound of 1,000 visible
+revision/entity pairs.
+[ADR 0059](0059-related-reviewed-question-navigation.md) adds related-question
+suggestions for unsupported wording. Ranking those navigation choices does not
+select an answer or resolve artifact ambiguity; the user must choose a question
+before it is executed.
 
 ## Tradeoffs
 
