@@ -57,7 +57,7 @@ def _covered(reader, assertion, pins):
     return False
 
 
-def annotate_accounts(root, store, records, *, scope=None):
+def annotate_accounts(root, store, records, *, scope=None, reader=None):
     """Copy qualified records after access filtering; never infer account equivalence."""
     from knot.retrieval_engine.evidence import _Evidence
 
@@ -83,7 +83,7 @@ def annotate_accounts(root, store, records, *, scope=None):
         raise ValueError('Invalid evidence account catalogue')
     grants = dict(scope.revisions) if scope is not None and not scope.whole_dataset else None
     visible = {record['id'] for record in result}
-    contexts, spans, seen, reader = {}, {}, set(), None
+    contexts, spans, seen = {}, {}, set()
     for group in data['groups']:
         if not isinstance(group, dict):
             raise ValueError('Invalid evidence account group')

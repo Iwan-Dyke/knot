@@ -155,6 +155,24 @@ def create_server(
             'a denied head or treat an old grant as globally current. Historical reads require '
             'a grant for that exact revision. EvidenceRevision marks a native citation used '
             'by structured evidence, without claiming currentness. Notes preserve authorship and uncertainty.'
+            ' For reviewed framework coverage, use knot_evaluate with exact subject, framework, '
+            'revision and criterion IRIs. Show its interpreted request. Support found is an '
+            'attributed mapping assessment, not proof of capability. With restricted grants, '
+            'missing mappings remain unknown. An output_budget abstention contains no usable '
+            'coverage conclusion; select fewer criteria or increase the permitted budget. '
+            'Evaluation never widens grants or accepts claims.'
+            ' knot_evaluate also accepts question instead of request for the exact template: '
+            'Does project "PROJECT" have reviewed support for criterion "CRITERION"? '
+            'It resolves exact visible names or IRIs, shows the interpreted request, and returns '
+            'a fixed answer with the receipt. Ambiguity returns choices without execution; '
+            'unsupported conditions are not dropped. Preserve that answer, its scope and evidence '
+            'rather than expanding it into a capability or achievement claim.'
+            ' Supply receipt alone to knot_evaluate to recompute a saved evaluation or evaluated '
+            'question with current rules and grants. Saved hashes confer no access or authenticity. '
+            'Use only current evidence; unchanged means an identical receipt, not established truth. '
+            'Changed dependencies can leave outcome categories unchanged. Saved questions repeat '
+            'name resolution. A not_comparable result or output-budget abstention cannot certify '
+            'freshness. Historical inputs and code are not replayed.'
             + (
                 ' Owner authoring is enabled. Start with knot_catalogue for vocabulary and workflow, '
                 'and knot_identifiers for stable IDs/current time. Use explicit user instructions '
@@ -292,6 +310,10 @@ def create_server(
                 'KNOT request unavailable; check the local dataset, scope and arguments.'
             ) from None
         return _bounded(result, budget, compact_response=compact, diagnostics=diagnostics)
+
+    from knot.interfaces.mcp_evaluation import register_evaluation_tool
+
+    register_evaluation_tool(server, root, scope, ceiling)
 
     if allow_write:
         from knot.interfaces.mcp_authoring import register_owner_tools

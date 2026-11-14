@@ -21,6 +21,7 @@ class NoteCliTests(unittest.TestCase):
         from knot.interfaces.note_cli import main
 
         for command, module, rooted in (
+            ('evaluate', 'knot.evaluation.cli', True),
             ('serve', 'knot.interfaces.library_server', True),
             ('view', 'knot.interfaces.view_cli', True),
             ('browse', 'knot.presentation.library', True),

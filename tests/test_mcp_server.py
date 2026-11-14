@@ -127,7 +127,7 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
                     if not owner:
                         self.assertEqual(
                             {t.name for t in (await client.list_tools()).tools},
-                            {'knot_lookup', 'knot_retrieve'},
+                            {'knot_lookup', 'knot_retrieve', 'knot_evaluate'},
                         )
 
     async def test_leadership_change_guard_and_continuity_evidence_reach_client(self):
@@ -247,7 +247,9 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
             server, raise_exceptions=True, cache=None, read_timeout_seconds=15
         ) as client:
             listed = await client.list_tools()
-            self.assertEqual({t.name for t in listed.tools}, {'knot_lookup', 'knot_retrieve'})
+            self.assertEqual(
+                {t.name for t in listed.tools}, {'knot_lookup', 'knot_retrieve', 'knot_evaluate'}
+            )
             self.assertTrue(all(t.annotations.read_only_hint for t in listed.tools))
             self.assertTrue(all(t.annotations.open_world_hint is False for t in listed.tools))
             found = await client.call_tool('knot_lookup', {'query': 'Recovery'})
@@ -307,7 +309,7 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
             evidence = json.loads(response.content[0].text)
             self.assertIn(CLAIM, evidence['assertions'])
             self.assertTrue(all('handle' in m for m in evidence['matches']))
-            self.assertEqual(len((await client.list_tools()).tools), 2)
+            self.assertEqual(len((await client.list_tools()).tools), 3)
 
     async def test_broad_discovery_does_not_expose_denied_subjects(self):
         server = create_server(self.root, AccessScope())
@@ -396,7 +398,7 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('withhold the change claim', client.instructions)
             self.assertEqual(
                 {t.name for t in (await client.list_tools()).tools},
-                {'knot_lookup', 'knot_retrieve'},
+                {'knot_lookup', 'knot_retrieve', 'knot_evaluate'},
             )
             result = await client.call_tool('knot_lookup', {'query': 'Recovery'})
             self.assertFalse(result.is_error)
@@ -438,7 +440,9 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
         server = create_server(self.root, scope)
         async with Client(server, cache=None, read_timeout_seconds=15) as client:
             tools = (await client.list_tools()).tools
-            self.assertEqual({t.name for t in tools}, {'knot_lookup', 'knot_retrieve'})
+            self.assertEqual(
+                {t.name for t in tools}, {'knot_lookup', 'knot_retrieve', 'knot_evaluate'}
+            )
             found = await client.call_tool('knot_lookup', {'query': 'Reading reflection'})
             self.assertEqual(
                 json.loads(found.content[0].text)['candidates'][0]['id'], first['note']

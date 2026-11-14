@@ -46,7 +46,7 @@ class AccessScope:
             raise ValueError('Scope file must contain only a revisions object')
         return cls(revisions=tuple(sorted(data['revisions'].items())))
 
-    def apply(self, store, original, records, labels):
+    def apply(self, store, original, records, labels, *, include_framework_stubs=True):
         if self.whole_dataset:
             return store, original, records, labels
         allowed = dict(self.revisions)
@@ -192,6 +192,8 @@ class AccessScope:
         for quad in store.quads_for_pattern(
             None, NamedNode(VOCAB + 'recordKind'), NamedNode(VOCAB + 'FrameworkDefinition'), META
         ):
+            if not include_framework_stubs:
+                break
             aid = quad.subject.value
             if eligible(aid):
                 metadata(aid, {VOCAB + 'recordKind', DERIVED})

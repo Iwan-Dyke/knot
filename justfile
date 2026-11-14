@@ -51,6 +51,9 @@ query file="queries/evidence.rq":
 retrieval +args:
     PYTHONPATH=src .venv/bin/python -m knot.retrieval_engine.service "$@"
 
+evaluate +args:
+    PYTHONPATH=src .venv/bin/python -m knot.evaluation.cli "$@"
+
 notes *args:
     PYTHONPATH=src .venv/bin/python -m knot.interfaces.note_cli "$@"
 

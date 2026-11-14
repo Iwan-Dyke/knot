@@ -287,6 +287,6 @@ class MCPAuthoringTests(unittest.IsolatedAsyncioTestCase):
         async with Client(reader, cache=None, read_timeout_seconds=10) as client:
             self.assertEqual(
                 {t.name for t in (await client.list_tools()).tools},
-                {'knot_lookup', 'knot_retrieve'},
+                {'knot_lookup', 'knot_retrieve', 'knot_evaluate'},
             )
             await self.call(client, 'knot_note_create', {'body': 'Denied'}, error=True)
