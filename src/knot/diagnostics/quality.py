@@ -790,6 +790,36 @@ def _audit_names(graph, names, counts, report):
     counts['labelled_or_typed_resources'] = len(set(canonical_labels) | entity_referents)
 
 
+def _audit_explanation_reviews(root, counts, report):
+    from knot.evaluation.explanations import _directory, history
+
+    counts['explanation_review_events'] = 0
+    try:
+        base = managed_path(root, 'reviews/explanations')
+        directories = sorted(base.iterdir()) if base.exists() else []
+    except READ_ERRORS as error:
+        report('errors', 'invalid_explanation_reviews', 'reviews/explanations', error)
+        return
+    for directory in directories:
+        relative = directory.relative_to(root).as_posix()
+        try:
+            directory = managed_path(root, relative)
+            if not directory.is_dir():
+                raise ValueError('Expected an explanation review directory')
+            paths = sorted(directory.glob('*.json'))
+            if not paths:
+                continue
+            value = json.loads(managed_path(root, paths[0].relative_to(root)).read_bytes())
+            if not isinstance(value, dict) or 'request' not in value:
+                raise ValueError('Invalid explanation review event')
+            events = history(root, value['request'])
+            if _directory(root, value['request']) != directory:
+                raise ValueError('Explanation review stored under the wrong request')
+            counts['explanation_review_events'] += len(events)
+        except READ_ERRORS as error:
+            report('errors', 'invalid_explanation_reviews', relative, error)
+
+
 def audit(root):
     """Run ordered audit passes without writing data or accepting claims."""
     root = Path(root).resolve()
@@ -801,6 +831,7 @@ def audit(root):
 
     # Evidence populates the verification view before identity and semantic checks.
     graph = _audit_graph(root, counts, report)
+    _audit_explanation_reviews(root, counts, report)
     notes = _audit_notes(root, graph, counts, report)
     quotes = _audit_evidence(root, graph, notes, counts, report)
     names = _audit_semantics(root, graph, quotes, counts, report)

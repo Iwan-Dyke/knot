@@ -23,6 +23,16 @@ def _view_hint(result, data_root):
 
 
 DELEGATES = {
+    'answer': (
+        'knot.interfaces.answer_cli',
+        True,
+        'Answer supported questions with checked routing',
+    ),
+    'explain': (
+        'knot.interfaces.explanation_cli',
+        True,
+        'Prepare, review and reuse decision explanations',
+    ),
     'evaluate': ('knot.evaluation.cli', True, 'Evaluate reviewed framework coverage'),
     'serve': ('knot.interfaces.library_server', True, 'Open the local Library with note editing'),
     'theme': ('knot.interfaces.visual_theme_cli', False, 'Choose or create a visual theme'),

@@ -133,6 +133,7 @@ All paths below are relative to the selected dataset root.
 | `graph/` | Persisted assertions, provenance, framework definitions and guarded projections |
 | `curation/` | Imported extraction inputs, identity bindings, preferred labels and evidence qualifications |
 | `reviews/events/` | Immutable assertion review events, maintained by the review writer |
+| `reviews/explanations/` | Immutable per-request approval/withdrawal chains, maintained by `knot explain` |
 | `reviews/` | Identity decisions and dataset-specific review records |
 | `migration/` | Archive inventory, conversion ledgers, retained extracted text and coverage reports |
 | `organisation/` | Theme/type catalogue, theme reviews and generated-output hashes |

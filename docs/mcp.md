@@ -99,8 +99,8 @@ stdio server still opens no network listener. See [ADR 0033](../design_decisions
 
 ### Scoped read-only retrieval
 
-The two tools available in scoped read-only mode are `knot_lookup` and
-`knot_retrieve`. Owner tools listed above require the separate startup permissions.
+The tools available in scoped read-only mode are `knot_lookup`, `knot_retrieve`,
+`knot_evaluate`, `knot_explain` and `knot_answer`. Owner tools listed above require the separate startup permissions.
 Their arguments and defaults are:
 
 ```python
@@ -110,6 +110,9 @@ knot_retrieve(
     definition_order=False, accepted_only=False, include_frameworks=False,
     max_chars=None, note_revision=None, subjects=None, objective="all", exclude=None,
 )
+knot_evaluate(request=None, max_chars=None, question=None, receipt=None)
+knot_explain(request=None, receipt=None, max_chars=None)
+knot_answer(question=None, receipt=None, explanation_revision=None, max_chars=None)
 ```
 
 Select a returned entity or note IRI explicitly;
@@ -132,6 +135,9 @@ This narrow option does not establish semantic answer support or discover correc
 see [ADR 0041](../design_decisions/0041-opt-in-definition-specificity-ordering.md).
 
 Omit `seed` and supply `question` for source search, including unassociated notes.
+Hybrid mode also searches existing direct claims with matching endpoint labels;
+explicit support/demonstration questions prioritise matching recorded relationships.
+This does not resolve an ambiguous identity or establish the truth of a claim.
 Without a question, a note seed reads a complete note and entity `mode="text"` browses
 its associated notes. `note_revision` selects an exact permitted historical version;
 the client must know that revision ID. Tool names, access configuration and read-only
@@ -146,6 +152,64 @@ selects the multi-subject hybrid path and cannot be combined with `seed` or
 Hidden revisions cannot contribute labels, scores, source counts or suggestions.
 The two example response budgets total 12,000 characters; callers must also bound
 their own follow-up count. The server does not launch an autonomous search loop.
+
+### Checked questions
+
+Prefer `knot_answer` for the supported coverage and decision-explanation question
+templates. It checks routing and selects eligible approved artifacts, returning
+choices when ambiguous. See [checked answers](checked-answers.md) for exact
+syntax, selection and revalidation. Unsupported conditions must not be dropped.
+Decision explanations also accept complete alternative questions explicitly
+reviewed through the owner-local explanation workflow. Pass the original wording;
+only outer whitespace is ignored, and no fuzzy paraphrase matching occurs. MCP
+cannot register, approve or withdraw mappings. A permitted answer includes its
+question-review metadata; source grants and output budgets still apply.
+An unsupported question may return related reviewed questions as `alternatives`.
+Present their full wording and guidance as choices; they are not verified
+paraphrases or an answer to the original question. The user must explicitly choose
+one before it is executed. Never automatically replace the original question or
+drop its conditions. See [question navigation](checked-answers.md#find-a-reviewed-question).
+
+### Reviewed coverage evaluation
+
+For reviewed prose about a decision, use [decision explanations](explanations.md)
+through `knot_explain`. It requires an exact decision, curated-note revision and
+supported question, with separate explicit owner approval of that wording.
+It preserves authorship, qualifications and transitive grants. This read tool
+cannot approve or withdraw answers. Pinned currentness is scope-relative; imported
+sources remain revision pins. Oversized packages abstain without answer text.
+
+`knot_evaluate` checks direct reviewed `subject supports criterion` mappings against
+an exact framework revision. Its typed `request` contains `subject`, `framework`,
+`framework_revision` and 1–20 distinct `criteria` IRIs. Optional `rule`/`version`
+must be `framework-coverage`/`1`; execution limits are `max_assertions` (1–1,000)
+and `max_sources` (1–100). Unknown request fields are rejected. `as_of` is recognised
+but yields unknown because temporal rules are unsupported.
+
+The tool uses the operator's source grants, including derivation closure, and
+returns the exact interpreted request. Visible support retains its attributed
+Assessment meaning; it does not certify capability. Under pinned access, missing
+mappings are unknown, never global absence. A required qualification with denied
+evidence withholds the assertion. No capture or review permission is needed.
+See the [evaluation guide](evaluation.md) for the request example and rule contract.
+
+Alternatively pass `question` alone using the checked template `Does project "PROJECT"
+have reviewed support for criterion "CRITERION"?`. It resolves exact visible names or
+IRIs and returns the interpreted request, fixed answer and full receipt. Ambiguous
+selections return choices without execution; unsupported wording is not silently
+reinterpreted. See [supported questions](evaluation.md#ask-a-supported-question).
+
+Supply `receipt` alone to revalidate a saved evaluation or evaluated question with
+current access and rules. The report separates receipt changes from outcome-category
+changes and returns only current evidence. Saved hashes confer no access or
+authenticity; unresolved questions and output-budget abstentions cannot certify
+freshness. See [receipt revalidation](evaluation.md#revalidate-a-saved-receipt).
+
+Coverage receipts are indivisible: if a full receipt exceeds `max_chars`, the tool
+returns an all-unknown `output_budget` abstention. If even the request and abstention
+cannot fit, it returns an error. Ask for fewer criteria or a larger permitted
+budget. Evaluation never prunes proof while retaining a conclusion. Restart the
+server after updating KNOT to register the new tool.
 
 ### Investigating knowledge
 
@@ -227,7 +291,7 @@ that preserves the exact citation without making it a default current-note text 
 
 The server defaults to a 12,000-character ceiling; `--max-chars` changes it at startup
 (2,048–131,072). Clients may request smaller budgets but cannot exceed that ceiling.
-The cap includes canonical JSON tool-result framing, with whole result packages
+The cap includes canonical JSON tool-result framing. For retrieval, whole result packages are
 removed if necessary and counted as `mcp_characters` omissions. Inner `usage` counts
 still describe the retrieval JSON; JSON-RPC IDs and SDK protocol metadata are extra.
 Results use one JSON text block rather than duplicated structured/text content.

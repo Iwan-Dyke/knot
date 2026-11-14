@@ -155,6 +155,21 @@ def create_server(
             'a denied head or treat an old grant as globally current. Historical reads require '
             'a grant for that exact revision. EvidenceRevision marks a native citation used '
             'by structured evidence, without claiming currentness. Notes preserve authorship and uncertainty.'
+            ' Prefer knot_answer for supported coverage or decision-explanation questions: it '
+            'checks the full template, resolves visible names, routes deterministically and '
+            'selects an eligible approved artifact. Preserve the question without dropping '
+            'conditions; unsupported questions remain unsupported. Multiple approved explanations '
+            'require explicit selection, never ranking or automatic choice. It also revalidates '
+            'saved checked-answer receipts, including routing and artifact selection. '
+            'Decision explanations also support complete alternative questions explicitly '
+            'reviewed with the answer. These match exactly except for outer whitespace; '
+            'do not infer a mapping for unregistered paraphrases. Wording reviews retain '
+            'their reviewer and event hash; withdrawal or replacement stops reuse. '
+            'An unsupported question may offer related reviewed alternatives. These are '
+            'navigation suggestions, not verified paraphrases or an answer to the original. '
+            'Show their complete wording and guidance. The user must explicitly choose '
+            'one before you execute it; never automatically rewrite the question or drop '
+            'its conditions, even when only one alternative is offered. '
             ' For reviewed framework coverage, use knot_evaluate with exact subject, framework, '
             'revision and criterion IRIs. Show its interpreted request. Support found is an '
             'attributed mapping assessment, not proof of capability. With restricted grants, '
@@ -173,6 +188,13 @@ def create_server(
             'Changed dependencies can leave outcome categories unchanged. Saved questions repeat '
             'name resolution. A not_comparable result or output-budget abstention cannot certify '
             'freshness. Historical inputs and code are not replayed.'
+            ' For reviewed decision explanations, knot_explain takes an exact decision IRI, '
+            'curated-note revision and question: Why was decision "DECISION_IRI" chosen? '
+            'A curated note is not an approved answer until explicitly reviewed for that request. '
+            'Preserve approved wording, qualifications, source authors and separate reviewer. '
+            'Pinned access establishes only latest-granted currentness, never global currentness; '
+            'imported sources stay pinned and may have later accounts. Unknown is not evidence '
+            'of absence. The tool can revalidate receipts but cannot approve or withdraw answers.'
             + (
                 ' Owner authoring is enabled. Start with knot_catalogue for vocabulary and workflow, '
                 'and knot_identifiers for stable IDs/current time. Use explicit user instructions '
@@ -314,6 +336,14 @@ def create_server(
     from knot.interfaces.mcp_evaluation import register_evaluation_tool
 
     register_evaluation_tool(server, root, scope, ceiling)
+
+    from knot.interfaces.mcp_explanations import register_explanation_tool
+
+    register_explanation_tool(server, root, scope, ceiling)
+
+    from knot.interfaces.mcp_answering import register_answer_tool
+
+    register_answer_tool(server, root, scope, ceiling)
 
     if allow_write:
         from knot.interfaces.mcp_authoring import register_owner_tools

@@ -54,6 +54,12 @@ retrieval +args:
 evaluate +args:
     PYTHONPATH=src .venv/bin/python -m knot.evaluation.cli "$@"
 
+explain +args:
+    PYTHONPATH=src .venv/bin/python -m knot.interfaces.explanation_cli "$@"
+
+answer +args:
+    PYTHONPATH=src .venv/bin/python -m knot.interfaces.answer_cli "$@"
+
 notes *args:
     PYTHONPATH=src .venv/bin/python -m knot.interfaces.note_cli "$@"
 
