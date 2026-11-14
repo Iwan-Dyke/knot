@@ -134,6 +134,8 @@ def create_server(
             'or relevant context is omitted, seek the missing context within the remaining limits; '
             'if it remains unavailable, withhold the change claim and explain the uncertainty. '
             'Results are recorded claims and source context, not independently verified truth. '
+            'A subject_constraint is a literal relevance filter, not identity resolution. '
+            'Empty constrained results do not establish absence in the dataset or the world. '
             'Preserve review status, origin, knowledge kind and source qualifications. '
             'Check citation verification, exact quotations and revision locators before citing. '
             'Keep original authorship distinct from curated interpretations; repeated or derived '
@@ -223,7 +225,11 @@ def create_server(
         ] = None,
     ) -> str:
         """Retrieve bounded evidence for a permitted entity or note. Omit seed and supply a question
-        for source search. With an entity/question, hybrid combines graph paths and source text.
+        for source search; hybrid also searches existing direct claims with matching endpoint labels.
+        Support/demonstration wording prioritises matching recorded relationships, not their truth.
+        Question-only searches constrain explicit project names and mixed letter/number identifiers;
+        subject_constraint records the literal filter. Empty results do not establish absence.
+        With an entity/question, hybrid combines graph paths and source text.
         Without a question, graph browses relationships and text browses associated notes.
         A note seed reads its complete current/visible version; note_revision requests exact history.
         Every accepted-only path requires all hops Accepted; source-only text is excluded.

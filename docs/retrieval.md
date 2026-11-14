@@ -45,6 +45,28 @@ assertion anchor. These are relevance cues, not verification of a number or its 
 Other questions retain the established ranking; this is a limited increment, not
 general semantic understanding.
 
+Comparative wording also recognises the measurement being sought: `faster`,
+`slower` and `slowdown` look for runtime, latency, duration or throughput evidence;
+`cheaper` and `costlier` look for cost evidence. Either direction can retrieve a
+contrary finding. These are relevance cues only; quotations, qualifications and
+review states retain the recorded meaning.
+
+Question-only text/hybrid searches recognise explicit subject syntax: `project Falcon`,
+`project "Blue Ember"`, or an identifier containing letters, digits and hyphens or
+underscores, such as `TASK-42`. They prioritise literal subject mentions before bounded
+candidate retention and exclude unrelated complete packages. Matching can use verified
+text, section headings, native-note titles or eligible claim endpoint labels/aliases.
+Required qualifications remain attached even when they do not repeat the name.
+With several explicit subjects, evidence mentioning any one can qualify.
+
+`subject_constraint` records the case-insensitive literal filter and remains present
+when diagnostics are omitted. It is not identity resolution, proof of support or a
+dataset-wide presence test. Empty results do not establish absence: grants, lexical
+wording and search budgets still limit retrieval. Unmarked names, misspellings and
+implicit references can still yield unrelated keyword matches. Use lookup and an
+explicit seed when a particular entity is intended. Broad questions, explicit seeds,
+selected-subject gathering and opt-in definition ordering retain their existing routing.
+
 For a broad question spanning decisions, outcomes and qualifications, a larger
 budget can be necessary:
 
@@ -115,6 +137,14 @@ required context for its graph claim. The graph match records `context_sources` 
 trimming with the claim. This is a same-source presentation hint, not a new graph
 relationship or a determination that two accounts contradict each other.
 
+For a `supports`/`demonstrates` mapping, an exact quotation already registered as
+the Accepted definition of its target criterion remains a definitional citation.
+A qualification cue elsewhere in that whole framework document does not make the
+entire document mandatory project context. The exact pin, qualifications within
+it, smaller qualifying units and explicit evidence-account qualifications remain
+intact. Different criteria, revisions or quotations and Unreviewed definitions do
+not receive this exception.
+
 Text context requires meaningful seed-label terms (excluding descriptors such as
 `account`), a verified active assertion involving the seed, or context in another
 verified revision of the same logical document. `source_context` records this as
@@ -172,8 +202,10 @@ source independence remains Unknown.
 
 The Python API is `knot.retrieval_engine.service.retrieve(data_root, canonical_iri, Policy(...))`;
 optional `question=...` and `mode='graph'|'text'|'hybrid'` enable ranked selection.
-Omit the seed for question-only source search, or pass a native note ID to select a
-note. Optional `note_revision=...` reads an exact committed native revision.
+Omit the seed for question-only retrieval, or pass a native note ID to select a
+note. Question-only hybrid retrieval searches source sections and existing direct
+claims with matching endpoint-label terms. Text mode remains source-only.
+Optional `note_revision=...` reads an exact committed native revision.
 Pass `limits=knot.retrieval_engine.search.Limits(...)` to change the question-specific scan bounds.
 `lookup` selects candidates and `serialise` produces the measured retrieval JSON.
 The MCP adapter adds tool-result framing and enforces that representation's limit.
@@ -224,11 +256,26 @@ windows may remain undiscovered.
 
 Broad recall remains limited; no production embedding model is required.
 
-For a question without a seed, KNOT retains the highest-ranked complete evidence
-package that fits, then fills remaining space with complementary context. The
-response reports `selection.strategy: "relevance_first"`. Question-only hybrid
-requests have a single text channel and preserve its relevance scores. Explicit
-seed queries and selected-subject gathering retain their existing selection.
+For a question without a seed, hybrid retrieval also considers bounded, one-hop
+substantive claims whose endpoint labels match question terms. It does not select
+an entity identity, join paths or infer that an actor is the owner. Source grants,
+review filters and citation verification apply before a claim can be returned.
+Half the candidate cap is available for these claims; text uses the remaining
+capacity and shares the source-revision budget. Definition claims remain available
+through explicit seeds; framework text follows `--include-frameworks`.
+
+Questions using `support`, `supports`, `demonstrate` or `demonstrates` prioritise
+matching recorded `supports`/`demonstrates` relationships before general topic
+passages, both before candidate retention and in final ranked selection. The
+response reports `selection.strategy: "rank"` and the matches expose
+`ranking.direct_relation_match`. This priority does not depend on acceptance and
+does not verify capability. An Unreviewed claim stays Unreviewed.
+
+Other question-only requests retain the highest-ranked complete package that fits,
+then fill remaining space with complementary context (`relevance_first`). Claims
+and text share lexical weights without reciprocal-rank fusion. Explicit-seed
+queries, selected-subject gathering, text-only search and opt-in definition ordering
+retain their selection behaviour. See [ADR 0053](../design_decisions/0053-question-only-direct-claim-retrieval.md).
 
 This helps prevent several cheap, weaker passages from displacing the primary
 account. Ranking still depends on wording: a top result may be incomplete or

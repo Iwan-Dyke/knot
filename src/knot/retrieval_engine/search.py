@@ -60,7 +60,13 @@ def _omit(result, name, count=1):
 
 def _candidate_order(candidate):
     path = candidate.get('path', [])
-    return (-candidate['ranking']['score'], len(path), str(path) if path else candidate['id'])
+    return (
+        not candidate['ranking'].get('subject_match', True),
+        not candidate['ranking'].get('direct_relation_match', False),
+        -candidate['ranking']['score'],
+        len(path),
+        str(path) if path else candidate['id'],
+    )
 
 
 def _keep(candidates, candidate, cap, result):
@@ -69,6 +75,55 @@ def _keep(candidates, candidate, cap, result):
     if len(candidates) > cap:
         candidates.pop()
         _omit(result, 'candidates')
+
+
+def _requested_support(record, terms):
+    return bool(
+        terms & {'support', 'supports', 'demonstrate', 'demonstrates'}
+        and record['predicate'] in {VOCAB + 'supports', VOCAB + 'demonstrates'}
+    )
+
+
+def _direct_candidates(records, scores, scorer, evidence, store, policy, cap, result):
+    """Search existing one-hop claims without guessing an entity or traversing a hub."""
+    predicates = {_iri(p) for p in policy.outgoing} - {VOCAB + 'relatedTo'}
+    ranked = sorted(
+        (
+            record
+            for record in records
+            if not record['framework']
+            and record['predicate'] in predicates
+            and scores[record['id']]['label_terms']
+            and scores[record['id']].get('subject_match', True)
+        ),
+        key=lambda record: (
+            not _requested_support(record, scorer.terms),
+            -scores[record['id']]['score'],
+            record['id'],
+        ),
+    )
+    if len(ranked) > cap:
+        _omit(result, 'candidates', len(ranked) - cap)
+    candidates = []
+    for record in ranked[:cap]:
+        aid = record['id']
+        try:
+            eids = values(store, aid, DERIVED)
+            if not eids:
+                raise ValueError('MissingEvidence')
+            for eid in sorted(eids, key=lambda value: value.value):
+                evidence.citation(eid.value)
+        except (ValueError, UnicodeError) as error:
+            _failure(result, error)
+            continue
+        candidates.append(
+            {
+                'channel': 'graph',
+                'path': [{'assertion': aid, 'direction': 'outgoing'}],
+                'ranking': scores[aid],
+            }
+        )
+    return candidates
 
 
 def _graph_candidates(seed, adjacency, scores, types, evidence, store, policy, cap, result):
@@ -412,7 +467,7 @@ def _score_text_sections(search, sections, alias_terms, seed_spans, requested_un
         if not body:
             continue
         heading_labels = ' '.join(locator['heading_path'])
-        if getattr(scorer, 'include_source_titles', False):
+        if scorer.subjects or getattr(scorer, 'include_source_titles', False):
             heading_labels += ' ' + (citation.get('native_note', {}).get('title') or '')
         ranking = scorer.score(quote, labels=heading_labels)
         if requested_unit or (
@@ -605,6 +660,16 @@ def _fuse(graph, text, store, evidence, scorer):
 def _packages(base, candidates, records, store, original, labels, types, evidence):
     """Prepare each complete path once; selection never re-reads graph evidence."""
     by_id = {record['id']: record for record in records}
+    definitions = {
+        (record['subject']['id'], revision.value, quote.value)
+        for record in records
+        if record['framework']
+        and record['status'] == 'Accepted'
+        and record['predicate'] == 'http://www.w3.org/2004/02/skos/core#definition'
+        for eid in values(store, record['id'], DERIVED)
+        for revision in values(store, eid.value, VOCAB + 'revision')
+        for quote in values(store, eid.value, VOCAB + 'quote')
+    }
     account_spans = defaultdict(dict)
     for record in records:
         for span in record.get('_evidence_account_spans', []):
@@ -695,6 +760,19 @@ def _packages(base, candidates, records, store, original, labels, types, evidenc
                         and int(envelope['sources'][eid]['locator']['characterOffset'])
                         + len(envelope['passages'][envelope['sources'][eid]['passage']])
                         <= start + len(quote)
+                        # A matching reviewed criterion pin defines the target; a cue
+                        # elsewhere in its whole framework is not project context.
+                        # Keep the pin and any smaller qualifying source unit intact.
+                        and not (
+                            terminal['predicate'] in {VOCAB + 'supports', VOCAB + 'demonstrates'}
+                            and source['locator'].get('document_complete')
+                            and (
+                                terminal['object'],
+                                source['revision'],
+                                envelope['passages'][envelope['sources'][eid]['passage']],
+                            )
+                            in definitions
+                        )
                     )
                 ]
                 covered = [
@@ -773,7 +851,9 @@ def _retrieve_ranked(
             mode = 'text'
         else:
             raise ValueError('Select an active canonical IRI using lookup first')
-    scorer = _Question(question, labels.get(seed, []))
+    scorer = _Question(
+        question, labels.get(seed, []), constrain_subject=seed is None and not definition_order
+    )
     evidence, types, adjacency = (
         reader or _Evidence(root, store, max_revisions=limits.max_source_revisions),
         defaultdict(set),
@@ -782,6 +862,17 @@ def _retrieve_ranked(
     outgoing = list(policy.outgoing) + (list(FRAMEWORK) if policy.include_frameworks else [])
     incoming = list(policy.incoming)
     scores = {}
+
+    def record_labels(record):
+        names = [record[end]['label'] for end in ('subject', 'object')]
+        if scorer.subjects:
+            names.extend(
+                name
+                for end in ('subject', 'object')
+                for name in sorted(labels.get(record[end]['id'], []))
+            )
+        return ' '.join(names)
+
     eligible = [
         record
         for record in records
@@ -806,7 +897,7 @@ def _retrieve_ranked(
         aid = record['id']
         scores[aid] = scorer.score(
             ' '.join(e['quote'] for e in record['evidence']),
-            labels=record['subject']['label'] + ' ' + record['object']['label'],
+            labels=record_labels(record),
             predicate=record['predicate'],
         )
         for direction, predicates, start, end in [
@@ -826,7 +917,7 @@ def _retrieve_ranked(
                 'method': 'lexical-intent-v2',
                 'terms': sorted(scorer.terms),
                 'intents': scorer.intents,
-                'fusion': 'not applied: single text channel'
+                'fusion': 'not applied: shared lexical scores'
                 if seed is None
                 else 'reciprocal-rank with source overlap; text first on ties',
                 'source_limits': {
@@ -838,6 +929,12 @@ def _retrieve_ranked(
         }
     )
     result['omissions']['source_only_excluded'] = policy.accepted_only and mode != 'graph'
+    if scorer.subjects:
+        result['subject_constraint'] = {
+            'mentions': scorer.subjects,
+            'match': 'any_case_insensitive_literal',
+            'absence_not_established': True,
+        }
     result['usage'].update({'source_revisions': 0, 'source_sections': 0, 'candidates': 0})
     if mode == 'text' or seed is None:
         result['usage']['frontier_peak'] = 0
@@ -851,6 +948,10 @@ def _retrieve_ranked(
         if mode != 'text' and seed is not None
         else []
     )
+    if seed is None and mode == 'hybrid' and not definition_order:
+        graph = _direct_candidates(
+            eligible, scores, scorer, evidence, store, policy, graph_cap, result
+        )
     text = (
         _text_candidates(
             store,
@@ -868,14 +969,31 @@ def _retrieve_ranked(
         else []
     )
     result['usage']['candidates'] = len(graph) + len(text)
-    # Question-only retrieval has no graph channel. Preserve its complete text
-    # relevance scores instead of replacing them with cross-channel rank weights.
+    if seed is None and graph:
+        # Text scoring fits its verified section corpus. Rescore direct claims with
+        # those same weights; preserve focused text relevance instead of rank fusion.
+        by_id = {record['id']: record for record in eligible}
+        for candidate in graph:
+            record = by_id[candidate['path'][0]['assertion']]
+            candidate['ranking'] = scorer.score(
+                ' '.join(e['quote'] for e in record['evidence']),
+                labels=record_labels(record),
+                predicate=record['predicate'],
+            )
+            # A question explicitly seeking support should see matching recorded
+            # support before general topic passages. This is relevance, not acceptance.
+            candidate['ranking']['direct_relation_match'] = _requested_support(record, scorer.terms)
     candidates = (
         _fuse(graph, text, store, evidence, scorer)
         if mode == 'hybrid' and seed is not None
-        else graph + text
+        else sorted(graph + text, key=_candidate_order)
     )
     packages = _packages(result, candidates, records, store, original, labels, types, evidence)
+    if scorer.subjects:
+        # Assemble required qualifications first, including context without the name.
+        packages = [
+            p for p in packages if p['envelope']['matches'][0]['ranking'].get('subject_match')
+        ]
     result['usage']['source_revisions'] = len(evidence.attempted)
     for package in packages:
         package['envelope']['usage']['source_revisions'] = len(evidence.attempted)
@@ -885,10 +1003,7 @@ def _retrieve_ranked(
         from knot.retrieval_engine.definition_order import reorder
 
         packages, _ = reorder(packages, question)
-    return _select(
-        result,
-        packages,
-        policy,
-        scorer.weights,
-        strategy='relevance_first' if seed is None else 'density',
-    )
+    strategy = 'relevance_first' if seed is None else 'density'
+    if seed is None and any(c['ranking'].get('direct_relation_match') for c in candidates):
+        strategy = 'rank'
+    return _select(result, packages, policy, scorer.weights, strategy=strategy)

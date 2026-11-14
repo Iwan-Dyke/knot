@@ -35,6 +35,76 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
         self.root = Path(self.temp.name)
         make_fixture(self.root)
 
+    async def test_unknown_explicit_subject_preserves_constraint_without_diagnostics(self):
+        async with Client(
+            create_server(self.root, AccessScope.all(), max_chars=12000), cache=None
+        ) as client:
+            response = await client.call_tool(
+                'knot_retrieve',
+                {
+                    'question': 'What dependencies threaten UNKNOWN-731?',
+                    'mode': 'hybrid',
+                    'max_chars': 4000,
+                    'diagnostics': False,
+                    'compact': True,
+                },
+            )
+            self.assertFalse(response.is_error)
+            self.assertLessEqual(result_size(response), 4000)
+            result = json.loads(response.content[0].text)
+            self.assertFalse(result['matches'])
+            self.assertFalse(result['sources'])
+            self.assertFalse(result['assertions'])
+            self.assertEqual(result['subject_constraint']['mentions'], ['unknown-731'])
+            self.assertTrue(result['subject_constraint']['absence_not_established'])
+
+    async def test_question_only_hybrid_delivers_existing_support_within_transport_budget(self):
+        from test_question_retrieval import QuestionRetrievalTests
+
+        from knot.retrieval_engine.response import _quotation
+
+        fixture = QuestionRetrievalTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        aid = 'urn:assertion:release-support'
+        quote = 'Falcon release engineering was reported, not independently verified.'
+        fixture.claim(
+            aid,
+            'urn:project:falcon',
+            'supports',
+            'urn:criterion:release-engineering',
+            quote,
+            status='Unreviewed',
+        )
+        fixture.save()
+        for scope in (AccessScope.all(), AccessScope()):
+            async with Client(
+                create_server(fixture.root, scope, max_chars=12000),
+                cache=None,
+                read_timeout_seconds=15,
+            ) as client:
+                for budget in (4000, 12000):
+                    response = await client.call_tool(
+                        'knot_retrieve',
+                        {
+                            'question': 'What supports my release engineering skills?',
+                            'mode': 'hybrid',
+                            'max_chars': budget,
+                            'diagnostics': False,
+                        },
+                    )
+                    self.assertFalse(response.is_error)
+                    self.assertLessEqual(result_size(response), budget)
+                    result = json.loads(response.content[0].text)
+                    if not scope.whole_dataset:
+                        self.assertNotIn(aid, result['assertions'])
+                        self.assertNotIn(quote, response.content[0].text)
+                    elif budget == 12000:
+                        self.assertIn(aid, result['assertions'])
+                        self.assertEqual(result['assertions'][aid]['status'], 'Unreviewed')
+                        source = result['sources'][result['assertions'][aid]['sources'][0]]
+                        self.assertEqual(_quotation(result, source), quote)
+
     async def test_investigation_guidance_is_sent_on_initialization_in_both_modes(self):
         for scope, owner in ((AccessScope(), False), (AccessScope.all(), True)):
             with self.subTest(owner=owner):

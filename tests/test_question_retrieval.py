@@ -8,7 +8,7 @@ from pathlib import Path
 from retrieval_fixture import CLAIM, ROUTE, SEED, make_fixture
 
 from knot.inventory import digest
-from knot.rdf import DERIVED, RDF_TYPE, VOCAB
+from knot.rdf import DERIVED, META, RDF_TYPE, VOCAB
 from knot.retrieval import Policy, retrieve, serialise
 from knot.review import decide
 from knot.search import Limits
@@ -115,6 +115,410 @@ class QuestionRetrievalTests(unittest.TestCase):
                 )
                 self.assertEqual({s['revision'] for s in result['sources'].values()}, {focused})
                 self.assertIn('adoption is unmeasured', ' '.join(result['passages'].values()))
+
+    def test_question_only_hybrid_finds_existing_mappings_without_selecting_a_seed(self):
+        aids = ['urn:assertion:release-checks', 'urn:assertion:release-approvals']
+        for aid, subject, quote in (
+            (aids[0], 'urn:project:falcon', 'Falcon release engineering uses automated checks.'),
+            (aids[1], 'urn:project:harbor', 'Harbor release engineering retains team approvals.'),
+        ):
+            self.claim(aid, subject, 'supports', 'urn:criterion:release-engineering', quote)
+        self.source(
+            'guide.md',
+            '# Release engineering skills\nGeneral skills support release engineering skills.',
+        )
+        self.save()
+        before = {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        for accepted_only in (False, True):
+            result = retrieve(
+                self.root,
+                question='What evidence supports my release engineering skills?',
+                mode='hybrid',
+                policy=Policy(max_chars=24000, accepted_only=accepted_only),
+            )
+            self.assertLessEqual(set(aids), result['assertions'].keys())
+            self.assertIsNone(result['seed'])
+            self.assertTrue(all(len(path) == 1 for path in result['paths']))
+            self.assertEqual(result['matches'][0]['channel'], 'graph')
+        text = retrieve(self.root, question='release engineering', mode='text', policy=self.policy)
+        self.assertFalse(text['assertions'])
+        self.assertEqual(before, {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+
+    def test_question_only_comparison_retains_evidence_against_the_premise(self):
+        quote = (
+            '# Quartz pipeline jobs\nRuntime and cost increased. '
+            'This was reported for one workload only, not every service.\n'
+        )
+        expected = self.source('runtime.md', quote)
+        self.source('cleanup.md', '# Quartz pipeline jobs\nNow include a cleanup command.\n')
+        self.save()
+        for mode in ('text', 'hybrid'):
+            with self.subTest(mode=mode):
+                result = retrieve(
+                    self.root,
+                    question='Did Quartz pipeline jobs become faster and cheaper?',
+                    mode=mode,
+                    policy=Policy(max_chars=12000, max_passages=1),
+                )
+                self.assertEqual({s['revision'] for s in result['sources'].values()}, {expected})
+                self.assertIn(quote, result['passages'].values())
+                self.assertFalse(result['assertions'])
+
+    def test_question_only_conflicting_measurements_retain_both_qualified_accounts(self):
+        quotes = (
+            '# Lumen rollout — first measurement\n'
+            'On 3 April, the Lumen rollout report measured a 20% latency reduction. '
+            'This is a team report, not independently verified.\n',
+            '# Lumen rollout — later measurement\n'
+            'On 8 April, the Lumen rollout report measured a 15% latency increase. '
+            'The workloads differed, so these measurements cannot establish a trend '
+            'or explain the discrepancy.\n',
+        )
+        expected = {self.source(f'measurement-{i}.md', quote) for i, quote in enumerate(quotes)}
+        self.save()
+        result = retrieve(
+            self.root,
+            question='What conflicting latency measurements were reported for the Lumen rollout?',
+            mode='hybrid',
+            policy=Policy(max_chars=24000),
+        )
+        self.assertEqual({s['revision'] for s in result['sources'].values()}, expected)
+        self.assertEqual(set(result['passages'].values()), set(quotes))
+        self.assertTrue(all(c['claim_review'] is None for c in result['source_context'].values()))
+        self.assertFalse(result['assertions'])
+
+    def test_question_only_named_claim_keeps_review_kind_and_qualification(self):
+        aid = 'urn:assertion:falcon-plan'
+        quote = 'Falcon release engineering was proposed; it is not yet implemented.'
+        self.claim(
+            aid,
+            'urn:project:falcon',
+            'supports',
+            'urn:criterion:release-engineering',
+            quote,
+            status='Unreviewed',
+        )
+        self.source(
+            'research.md', '# Release metrics\nFalcon is mentioned in general metrics research.'
+        )
+        self.save()
+        question = 'What does Falcon demonstrate about release engineering?'
+        result = retrieve(self.root, question=question, mode='hybrid', policy=self.policy)
+        self.assertIn(aid, result['assertions'])
+        self.assertEqual(result['assertions'][aid]['status'], 'Unreviewed')
+        self.assertIn('not yet implemented', ' '.join(result['passages'].values()))
+        accepted = retrieve(
+            self.root,
+            question=question,
+            mode='hybrid',
+            policy=replace(self.policy, accepted_only=True),
+        )
+        self.assertNotIn(aid, accepted['assertions'])
+
+    def test_explicit_unknown_subject_does_not_return_generic_delivery_evidence(self):
+        self.claim(
+            'urn:assertion:other-delivery',
+            'urn:project:delivery',
+            'reportedOutcome',
+            'urn:outcome:successful-delivery',
+            'The delivery team reported successful delivery, not independently verified.',
+        )
+        self.source('delivery.md', '# Delivery evidence\nThe team delivered the release.\n')
+        self.save()
+        for subject in ('MISSING-731', 'project Nimbus', 'project "Blue Ember"'):
+            for mode in ('text', 'hybrid'):
+                with self.subTest(subject=subject, mode=mode):
+                    result = retrieve(
+                        self.root,
+                        question=f'What evidence supports successful delivery of {subject}?',
+                        mode=mode,
+                        policy=self.policy,
+                    )
+                    self.assertFalse(result['matches'])
+                    self.assertFalse(result['sources'])
+                    self.assertFalse(result['assertions'])
+                    self.assertIn('subject_constraint', result)
+                    self.assertTrue(result['subject_constraint']['absence_not_established'])
+        broad = retrieve(
+            self.root,
+            question='What evidence supports successful delivery?',
+            mode='hybrid',
+            policy=self.policy,
+        )
+        self.assertTrue(broad['matches'])
+        self.assertNotIn('subject_constraint', broad)
+
+    def test_explicit_subject_matches_complete_source_only_units_before_candidate_cap(self):
+        expected = self.source(
+            'target.md',
+            '# MISSING-731\nA delivery was proposed; it is not yet implemented.\n',
+        )
+        self.source(
+            'other.md',
+            '# MISSING-7310 successful delivery evidence\nSuccessful delivery was reported.\n',
+        )
+        self.save()
+        for mode in ('text', 'hybrid'):
+            with self.subTest(mode=mode):
+                result = retrieve(
+                    self.root,
+                    question='What evidence supports successful delivery of MISSING-731?',
+                    mode=mode,
+                    policy=self.policy,
+                    limits=Limits(max_candidates=1),
+                )
+                self.assertEqual({s['revision'] for s in result['sources'].values()}, {expected})
+                self.assertIn('not yet implemented', ' '.join(result['passages'].values()))
+                self.assertFalse(result['assertions'])
+
+    def test_explicit_project_name_uses_visible_alias_and_keeps_required_context(self):
+        from knot.rdf import LABEL
+
+        aid, subject = 'urn:assertion:falcon-delivery', 'urn:project:falcon'
+        quote = 'The team reported successful delivery.'
+        self.claim(aid, subject, 'reportedOutcome', 'urn:outcome:delivery', quote)
+        self.dataset.add(subject, LABEL, 'Silverwing', literal=True)
+        # The subject is in metadata only: its contextual caveat must still travel
+        # with the matching claim even though that context lacks the query's name.
+        full = '# Delivery account\n' + quote + '\nHowever, independent verification is pending.\n'
+        revision = self.source('qualified.md', full)
+        self.dataset.add(aid + ':evidence', VOCAB + 'revision', revision)
+        # Replace the original citation revision rather than creating two targets.
+        old = 'urn:revision:' + digest((quote + '\n').encode())
+        self.dataset.graphs[META.value] = {
+            line
+            for line in self.dataset.graphs[META.value]
+            if old not in line or aid + ':evidence' not in line
+        }
+        self.save()
+        result = retrieve(
+            self.root,
+            question='What evidence supports successful delivery of project Silverwing?',
+            mode='hybrid',
+            policy=self.policy,
+        )
+        self.assertIn(aid, result['assertions'])
+        self.assertIn('independent verification is pending', ' '.join(result['passages'].values()))
+
+    def test_explicit_subject_cannot_reveal_denied_sources_or_bypass_verification(self):
+        from knot.access import AccessScope
+
+        visible = self.source('visible.md', '# Delivery\nA different project delivered.\n')
+        self.save()
+        raw = (self.root / 'sources/visible.md').read_bytes()
+        scope = AccessScope(revisions=((visible, digest(raw)),))
+        question = 'What supports delivery of HIDDEN-42?'
+
+        def request(scope):
+            return retrieve(
+                self.root, question=question, mode='hybrid', policy=self.policy, scope=scope
+            )
+
+        before = request(scope)
+        self.source(
+            'hidden.md', '# HIDDEN-42\nThe project delivered, but verification is pending.\n'
+        )
+        self.save()
+        self.assertEqual(serialise(before), serialise(request(scope)))
+        self.assertFalse(before['sources'])
+        allowed = request(AccessScope.all())
+        self.assertTrue(allowed['sources'])
+        (self.root / 'sources/hidden.md').write_text('Changed bytes')
+        corrupt = request(AccessScope.all())
+        self.assertFalse(corrupt['sources'])
+        self.assertGreater(corrupt['omissions']['invalid_citations'], 0)
+
+    def test_explicit_multiple_projects_can_return_evidence_for_either_without_guessing_identity(
+        self,
+    ):
+        expected = {
+            self.source('north.md', '# North Star\nDelivery was reported, not verified.\n'),
+            self.source('south.md', '# South Star\nDelivery was proposed, not completed.\n'),
+        }
+        self.source('other.md', '# Delivery\nThe unrelated team delivered successfully.\n')
+        self.save()
+        result = retrieve(
+            self.root,
+            question='Compare delivery of project "North Star" and project "South Star".',
+            mode='hybrid',
+            policy=self.policy,
+        )
+        self.assertEqual({s['revision'] for s in result['sources'].values()}, expected)
+        self.assertFalse(result['identities'])
+        self.assertFalse(result['assertions'])
+
+    def test_reviewed_definition_pin_does_not_require_the_entire_framework_as_claim_context(self):
+        aid, criterion = 'urn:assertion:release-assessment', 'urn:criterion:release-engineering'
+        self.claim(
+            aid,
+            'urn:project:falcon',
+            'supports',
+            criterion,
+            'Release engineering: a reported exercise, not proof of a grade.',
+        )
+        definition = 'Release engineering includes designing a component delivery process.'
+        revision = self.source(
+            'framework.txt',
+            'General framework introduction. ' * 1000
+            + '\n'
+            + definition
+            + '\nHowever, the unrelated mentoring section has further guidance.\n',
+        )
+        self.dataset.add(aid, DERIVED, aid + ':definition')
+        self.dataset.add(aid + ':definition', VOCAB + 'revision', revision)
+        self.dataset.add(aid + ':definition', VOCAB + 'quote', definition, literal=True)
+        did = 'urn:assertion:release-definition'
+        self.dataset.add(
+            criterion,
+            'http://www.w3.org/2004/02/skos/core#definition',
+            definition,
+            literal=True,
+            graph=did,
+        )
+        self.dataset.add(did, RDF_TYPE, VOCAB + 'Assertion')
+        for key, value in [
+            ('reviewStatus', 'Accepted'),
+            ('lifecycle', 'Active'),
+            ('origin', 'Explicit'),
+            ('recordKind', 'FrameworkDefinition'),
+        ]:
+            self.dataset.add(did, VOCAB + key, VOCAB + value)
+        for key, value in [
+            ('subjectLabel', 'Release engineering'),
+            ('objectLabel', definition),
+            ('rationale', 'The framework definition, not performance evidence.'),
+        ]:
+            self.dataset.add(did, VOCAB + key, value, literal=True)
+        self.dataset.add(did, DERIVED, aid + ':definition')
+        self.save()
+        result = retrieve(
+            self.root,
+            question='What supports release engineering?',
+            mode='hybrid',
+            policy=Policy(max_chars=12000),
+        )
+        self.assertIn(aid, result['assertions'])
+        self.assertEqual(len(result['assertions'][aid]['sources']), 2)
+        self.assertIn(definition, ' '.join(result['passages'].values()))
+        self.assertIn('not proof of a grade', ' '.join(result['passages'].values()))
+        # Without a reviewed definition, do not infer that the extra context is irrelevant.
+        self.dataset.graphs[META.value] = {
+            line
+            for line in self.dataset.graphs[META.value]
+            if not line.startswith(f'<{did}> <{VOCAB}reviewStatus>')
+        }
+        self.dataset.add(did, VOCAB + 'reviewStatus', VOCAB + 'Unreviewed')
+        self.save()
+        unreviewed = retrieve(
+            self.root,
+            question='What supports release engineering?',
+            mode='hybrid',
+            policy=Policy(max_chars=12000),
+        )
+        self.assertNotIn(aid, unreviewed['assertions'])
+
+    def test_question_only_claim_search_is_unchanged_by_denied_matching_claims(self):
+        from knot.access import AccessScope
+
+        aid = 'urn:assertion:visible-release'
+        quote = 'Falcon release engineering retains approvals.'
+        self.claim(
+            aid, 'urn:project:falcon', 'supports', 'urn:criterion:release-engineering', quote
+        )
+        self.save()
+        sha = digest((quote + '\n').encode())
+        scope = AccessScope(revisions=(('urn:revision:' + sha, sha),))
+
+        def request():
+            return retrieve(
+                self.root,
+                question='What supports release engineering?',
+                mode='hybrid',
+                policy=self.policy,
+                scope=scope,
+            )
+
+        before = request()
+        self.assertIn(aid, before['assertions'])
+        self.claim(
+            'urn:assertion:hidden-release',
+            'urn:project:private-falcon',
+            'supports',
+            'urn:criterion:release-engineering',
+            'Secret release engineering skills demonstrate private facts.',
+        )
+        self.save()
+        self.assertEqual(serialise(before), serialise(request()))
+        self.assertFalse(
+            retrieve(
+                self.root,
+                question='What supports release engineering?',
+                mode='hybrid',
+                policy=self.policy,
+                scope=AccessScope(),
+            )['assertions']
+        )
+
+    def test_question_only_support_priority_precedes_candidate_cap(self):
+        aid = 'urn:assertion:requested-support'
+        self.claim(
+            aid,
+            'urn:project:falcon',
+            'supports',
+            'urn:criterion:release-engineering',
+            'A release engineering exercise was reported.',
+        )
+        self.claim(
+            'urn:assertion:incidental-use',
+            'urn:project:falcon',
+            'used',
+            'urn:tool:release-engineering',
+            'Falcon support skills demonstrate release engineering research tools.',
+        )
+        self.save()
+        result = retrieve(
+            self.root,
+            question='What supports Falcon release engineering skills?',
+            mode='hybrid',
+            policy=self.policy,
+            limits=Limits(max_candidates=1),
+        )
+        self.assertEqual(set(result['assertions']), {aid})
+        self.assertLessEqual(result['usage']['candidates'], 1)
+
+    def test_question_only_requires_every_citation_and_keeps_complete_packages(self):
+        from knot.access import AccessScope
+
+        aid, quote = 'urn:assertion:qualified-release', 'Falcon release engineering was reported.'
+        self.claim(
+            aid, 'urn:project:falcon', 'supports', 'urn:criterion:release-engineering', quote
+        )
+        qualification = 'However, this report is not independently verified.'
+        revision = self.source('qualification.md', qualification)
+        self.dataset.add(aid, DERIVED, aid + ':qualification')
+        self.dataset.add(aid + ':qualification', VOCAB + 'revision', revision)
+        self.dataset.add(aid + ':qualification', VOCAB + 'quote', qualification, literal=True)
+        self.save()
+        sha = digest((quote + '\n').encode())
+        partial = AccessScope(revisions=(('urn:revision:' + sha, sha),))
+        question = 'What supports release engineering?'
+        denied = retrieve(
+            self.root, question=question, mode='hybrid', policy=self.policy, scope=partial
+        )
+        self.assertNotIn(aid, denied['assertions'])
+        self.assertNotIn(qualification, serialise(denied))
+        for budget in (2000, 6000, 12000):
+            result = retrieve(
+                self.root, question=question, mode='hybrid', policy=Policy(max_chars=budget)
+            )
+            self.assertLessEqual(len(serialise(result)), budget)
+            if aid in result['assertions']:
+                self.assertEqual(len(result['assertions'][aid]['sources']), 2)
+                self.assertIn(qualification, ' '.join(result['passages'].values()))
+        (self.root / 'sources/qualification.md').write_text('Changed bytes.')
+        corrupt = retrieve(self.root, question=question, mode='hybrid', policy=self.policy)
+        self.assertNotIn(aid, corrupt['assertions'])
+        self.assertGreater(corrupt['omissions']['invalid_citations'], 0)
 
     def test_hybrid_recovers_source_with_no_assertion_and_keeps_qualification(self):
         text = '# Orion\n\n## Retry plan\nRetries are planned.\nThey have not been tested; no delivery outcome is established.\n'

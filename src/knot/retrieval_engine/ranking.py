@@ -71,6 +71,8 @@ INTENTS = {
         {'measurable', 'measured', 'measurement'},
         {'reportedOutcome': 6},
     ),
+    'speed_comparison': ({'faster', 'slower', 'slowdown'}, {}),
+    'cost_comparison': ({'cheaper', 'costlier'}, {}),
 }
 
 # Groups prevent repeated synonyms from inflating an intent signal. They describe
@@ -94,6 +96,11 @@ CONCEPTS = {
         {'target', 'baseline', 'count', 'ratio', 'percent', 'percentage'},
         {'done', 'completed', 'achieved', 'exceeded', 'reduced', 'increased'},
     ),
+    # Opposite directions seek the same measurement; they do not agree on its result.
+    'speed_comparison': (
+        {'faster', 'slower', 'slowdown', 'runtime', 'latency', 'duration', 'throughput'},
+    ),
+    'cost_comparison': ({'cheaper', 'costlier', 'cost', 'costs', 'billing', 'expense', 'price'},),
 }
 
 
@@ -101,11 +108,34 @@ def tokens(text):
     return {NORMAL.get(word, word) for word in re.findall(r'\w+', text.casefold())} - STOP
 
 
+def _explicit_subjects(question):
+    # Only explicit syntax constrains search; capitalised prose alone is not an identity.
+    project = re.compile(r'\b[Pp]roject\s+(?:"([^"\n]+)"|“([^”\n]+)”|([A-Z][\w-]*))')
+    names = {
+        value.strip().casefold()
+        for match in project.findall(question)
+        for value in match
+        if value.strip()
+    }
+    identifiers = re.findall(
+        r'\b[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)+\b', project.sub('', question)
+    )
+    names.update(value.casefold() for value in identifiers if any(c.isdigit() for c in value))
+    return sorted(names)
+
+
 class _Question:
-    def __init__(self, question, aliases):
+    def __init__(self, question, aliases, *, constrain_subject=False):
         self.terms = tokens(question) - tokens(' '.join(aliases))
         self.intents = sorted(name for name, (words, _) in INTENTS.items() if self.terms & words)
         self.weights = {}
+        self.subjects = _explicit_subjects(question) if constrain_subject else []
+
+    def matches_subject(self, text):
+        return any(
+            re.search(r'(?<![\w-])' + re.escape(name) + r'(?![\w-])', text, re.I)
+            for name in self.subjects
+        )
 
     def fit(self, texts):
         documents = [tokens(text) for text in texts]
@@ -135,6 +165,11 @@ class _Question:
         lexical = 4 * sum(self.weights.get(term, 1) for term in matched)
         heading = 0.5 * sum(self.weights.get(term, 1) for term in label_terms)
         return {
+            **(
+                {'subject_match': self.matches_subject(text + ' ' + labels)}
+                if self.subjects
+                else {}
+            ),
             'score': round((lexical + heading) / length_factor + bonus + 4 * len(concepts), 6),
             'matched': matched,
             'label_terms': label_terms,

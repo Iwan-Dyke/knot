@@ -39,7 +39,7 @@ def select_revisions(revisions, store, records, scorer, evidence, limits, result
     alias_terms = [tokens(a) for a in aliases if tokens(a)]
 
     def rank(text):
-        local = any(terms <= tokens(text) for terms in alias_terms)
+        local = any(terms <= tokens(text) for terms in alias_terms) or scorer.matches_subject(text)
         return local, scorer.score(text)['score']
 
     ranked = []

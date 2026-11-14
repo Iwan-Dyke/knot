@@ -82,7 +82,33 @@ class HybridRankingTests(unittest.TestCase):
         self.assertIn('measurement', scorer.intents)
         self.assertGreater(result['score'], proposal['score'])
 
+    def test_comparison_questions_find_measurements_even_with_opposite_direction(self):
+        incidental = 'Quartz pipeline jobs now include a cleanup command.'
+        for question, finding in (
+            ('Did Quartz pipeline jobs become faster and cheaper?', 'increased'),
+            ('Did Quartz pipeline jobs become slower and costlier?', 'decreased'),
+        ):
+            with self.subTest(question=question):
+                evidence = (
+                    f'Quartz pipeline jobs: runtime and cost {finding}. '
+                    'This was reported for one workload only, not every service.'
+                )
+                scorer = _Question(question, [])
+                scorer.fit([evidence, incidental])
+                self.assertGreater(
+                    scorer.score(evidence)['score'], scorer.score(incidental)['score']
+                )
+
     def test_other_questions_retain_the_established_fusion(self):
         strong, incidental = self.text('strong', 10), self.text('incidental', 1)
         fused = _fuse([], [strong, incidental], None, None, _Question('What outcome?', []))
         self.assertAlmostEqual(fused[1]['fusion_score'] / fused[0]['fusion_score'], 61 / 62)
+
+    def test_explicit_subject_syntax_does_not_split_quoted_names_or_infer_general_names(self):
+        scorer = _Question('What supports project "North TKT-42"?', [], constrain_subject=True)
+        self.assertEqual(scorer.subjects, ['north tkt-42'])
+        self.assertFalse(scorer.matches_subject('TKT-42 was delivered.'))
+        self.assertTrue(scorer.matches_subject('North TKT-42 was proposed.'))
+        for question in ('What supports my CI/CD skills?', 'Did Falcon deliver?', 'project " "'):
+            self.assertFalse(_Question(question, [], constrain_subject=True).subjects)
+        self.assertFalse(_Question('What supports project Falcon?', []).subjects)
