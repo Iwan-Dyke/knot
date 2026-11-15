@@ -24,11 +24,21 @@ Clients must obtain an explicit user selection before submitting a different
 question; one suggestion is not permission to silently replace the request.
 
 Reuse the existing lexical token normalisation for navigation, filtering generic
-question words. Candidates must share at least one remaining term and cover at
-least one quarter of the query's remaining terms. Rank by shared terms divided
-by union size, with stable textual/request tie-breaks. This is a relevance heuristic,
-not a semantic-equivalence test; it can miss useful choices or suggest questions
-with a different scope. No generated queries or new review events are involved.
+question words. Match reviewed wordings together with the curated title and the
+decision's labels from the scoped projection. Filter generic metadata descriptors
+such as “note”, “source” and “project” from those contextual hints. A remaining
+decision-label term can admit a long question even when its additional conditions
+reduce the proportion of shared words. Otherwise require at least one shared term
+and coverage of one quarter of the query's remaining terms. Rank label matches
+first, then shared terms divided by union size, with stable textual/request ties.
+Do not search answer bodies or unscoped labels to rank candidates.
+
+This extends discovery beyond the wording-only rule after a development exercise
+missed a related approved explanation in a longer question naming its decision.
+Labels are lexical hints, not identity resolution or permission to ignore extra
+conditions. Several decisions can share a label. This relevance heuristic can miss
+useful choices or suggest questions with a different scope; broader recall trades
+off against irrelevant suggestions. No generated queries or review events are involved.
 
 Search only the already bounded, current, visible curated candidates and their
 accessible review histories. Only active approvals with registered wordings can
@@ -59,6 +69,7 @@ so the server exposes the original unsupported status and supplies explicit clie
 instructions rather than claiming to enforce user intent outside the tool.
 
 Existing test modules cover unchanged original questions, explicit selection,
+long questions, alternate labels, curated titles, generic metadata, shared labels,
 extra conditions, unrelated topics, stale/withdrawn artifacts, hidden and missing
 grants, result/work budgets, source corruption, concurrent changes, revalidation,
 read-only CLI use and MCP framing/stdio behavior. Development measurements report

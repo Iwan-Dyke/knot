@@ -46,6 +46,16 @@ QUESTION_WORDS = {
     'tell',
     'use',
 }
+METADATA_DESCRIPTORS = {
+    'account',
+    'framework',
+    'project',
+    'source',
+    'note',
+    'explanation',
+    'next',
+    'alternative',
+}
 
 
 def _envelope(question, selection, *, status, route=None, request=None, steps=None, **fields):
@@ -80,24 +90,46 @@ def _track_sources(snapshot, result):
             raise ValueError('Inconsistent source pins during selection')
 
 
+def _decision_labels(view):
+    labels = _labels(view.store, view.records)
+    # Native declarations and alternate labels must come from the scoped projection.
+    for quad in view.store.quads_for_pattern(None, NamedNode(LABEL), None, None):
+        labels.setdefault(quad.subject.value, set()).add(quad.object.value)
+    return labels
+
+
 def _alternatives(snapshot, question, candidates):
     """Lexical navigation never supplies an interpretation or answer to the question."""
     query = terms(question) - QUESTION_WORDS
+    labels = _decision_labels(snapshot.view)
     ranked = []
     for request, title, events in candidates:
         if not events or events[-1]['action'] != 'approve':
             continue
+        names = set().union(*(terms(label) for label in labels.get(request['decision'], ())))
+        names -= QUESTION_WORDS | METADATA_DESCRIPTORS
+        context = (names | terms(title or '')) - QUESTION_WORDS - METADATA_DESCRIPTORS
+        name_match = bool(query & names)
         for wording in events[-1].get('wordings', []):
-            words = terms(wording) - QUESTION_WORDS
+            words = (terms(wording) - QUESTION_WORDS) | context
             overlap = query & words
-            if overlap and len(overlap) * 4 >= len(query):
+            # A name match can navigate a long question without dropping its conditions.
+            if name_match or (overlap and len(overlap) * 4 >= len(query)):
                 score = len(overlap) / len(query | words)
                 ranked.append(
-                    (-score, wording, request['decision'], request['revision'], request, title)
+                    (
+                        not name_match,
+                        -score,
+                        wording,
+                        request['decision'],
+                        request['revision'],
+                        request,
+                        title,
+                    )
                 )
-    ranked.sort(key=lambda row: row[:4])
+    ranked.sort(key=lambda row: row[:5])
     checked, options, truncated = {}, [], False
-    for index, (_, wording, decision, revision, request, title) in enumerate(ranked):
+    for index, (_, _, wording, decision, revision, request, title) in enumerate(ranked):
         key = (decision, revision)
         if key not in checked:
             if len(checked) >= MAX_ALTERNATIVE_CHECKS:
@@ -191,12 +223,7 @@ def _explanation(root, question, decision, selection, scope):
         return _envelope(question, selection, status=status, route=route, steps=steps, **fields)
 
     if not wording:
-        labels = _labels(view.store, view.records)
-        # Native declarations can name a decision without a substantive assertion.
-        # Only projected labels are visible; global labels are not scope grants.
-        for quad in view.store.quads_for_pattern(None, NamedNode(LABEL), None, None):
-            labels.setdefault(quad.subject.value, set()).add(quad.object.value)
-        selected = questions._matches(decision, labels)
+        selected = questions._matches(decision, _decision_labels(view))
         steps.append(
             {
                 'check': 'decision_selection',

@@ -10,6 +10,7 @@ import test_explanations as fixture
 
 from knot.evaluation import explanations
 from knot.evaluation.answering import answer, revalidate
+from knot.graph.rdf import LABEL, Dataset
 from knot.interfaces.access import AccessScope
 from knot.writing.notes import create_note
 
@@ -91,6 +92,136 @@ class TestAnswering(unittest.TestCase):
         self.approve_wordings()
         for question in ('Why did we choose streaming?', 'What should I cook for dinner?'):
             self.assertEqual(answer(self.root, question)['alternatives'], [])
+
+    def add_label(self, label, decision=fixture.DECISION):
+        graph = Dataset()
+        graph.add(decision, LABEL, label, literal=True)
+        path = self.root / 'graph/example.trig'
+        path.write_text(path.read_text() + graph.text())
+
+    def test_long_question_uses_decision_name_without_interpreting_extra_conditions(self):
+        self.approve_wordings()
+        question = 'What trade-off led to batching while the temporary staff were available?'
+        result = answer(self.root, question)
+        self.assertEqual(result['status'], 'unsupported_question')
+        self.assertEqual(result['question'], question)
+        self.assertIsNone(result['route'])
+        self.assertIsNone(result['request'])
+        self.assertNotIn('answer', result)
+        self.assertEqual(len(result['alternatives']), 2)
+        selected = result['alternatives'][0]
+        self.assertEqual(
+            answer(
+                self.root,
+                selected['question'],
+                explanation_revision=selected['explanation_revision'],
+            )['answer'],
+            self.f.note['body'],
+        )
+
+    def test_visible_alternate_label_finds_wordings_without_that_label(self):
+        self.approve_wordings()
+        self.add_label('Bulk dispatch')
+        result = answer(self.root, 'What motivated bulk dispatch when resources were limited?')
+        self.assertEqual(result['status'], 'unsupported_question')
+        self.assertEqual({a['decision'] for a in result['alternatives']}, {fixture.DECISION})
+        self.assertTrue(all('bulk' not in a['question'] for a in result['alternatives']))
+
+    def test_shared_label_keeps_distinct_decisions_as_choices(self):
+        self.approve_wordings()
+        self.add_label('Bulk dispatch')
+        decision = 'urn:example:decision:retry-batching'
+        self.add_label('Bulk dispatch', decision)
+        note = create_note(
+            self.root,
+            'The same account also describes batching retries to reduce calls.\n',
+            title='Retry rationale',
+            author='Synthetic curator',
+            agent='Synthetic curator',
+            entities=[decision],
+            derivation={
+                'method': 'faithful_restatement',
+                'qualification': 'A synthetic shared-label example.',
+                'sources': [self.f.pin],
+            },
+        )
+        self.approve_wordings(
+            {
+                'decision': decision,
+                'revision': note['revision'],
+                'question': f'Why was decision "{decision}" chosen?',
+            },
+            ['Why did we batch retries?'],
+        )
+        question = 'What motivated bulk dispatch when resources were limited?'
+        result = answer(self.root, question)
+        self.assertEqual(result['status'], 'unsupported_question')
+        self.assertIsNone(result['request'])
+        self.assertEqual(
+            {a['decision'] for a in result['alternatives']}, {fixture.DECISION, decision}
+        )
+        self.assertEqual(result, answer(self.root, question))
+
+    def test_curated_title_supplies_context_without_searching_unapproved_bodies(self):
+        from knot.writing.notes import save_note
+
+        revised = save_note(
+            self.root,
+            self.f.note['note'],
+            self.f.note['body'],
+            expected=self.f.note['revision'],
+            title='Weekend release scheduling',
+            agent='Synthetic curator',
+        )
+        request = {**self.f.request, 'revision': revised['revision']}
+        question = 'What about weekend release scheduling?'
+        self.assertEqual(answer(self.root, question)['alternatives'], [])
+        self.approve_wordings(request)
+        result = answer(self.root, question)
+        self.assertEqual(
+            {a['explanation_revision'] for a in result['alternatives']}, {revised['revision']}
+        )
+        self.assertNotIn('answer', result)
+
+    def test_generic_metadata_descriptors_do_not_offer_unrelated_wordings(self):
+        self.approve_wordings()
+        self.add_label('Batching project source account')
+        for question in (
+            'Can a source note approve an answer automatically?',
+            'What explanation is next for this project?',
+        ):
+            self.assertEqual(answer(self.root, question)['alternatives'], [])
+
+    def test_hidden_alternate_label_cannot_change_scoped_navigation(self):
+        self.approve_wordings()
+        scope = self.f.scope(self.f.note, self.f.source)
+        question = 'What motivated bulk dispatch when resources were limited?'
+        before = answer(self.root, question, scope=scope)
+        self.add_label('Bulk dispatch')
+        self.assertEqual(before, answer(self.root, question, scope=scope))
+        self.assertTrue(answer(self.root, question)['alternatives'])
+
+    def test_metadata_match_still_requires_current_approval_and_evidence(self):
+        self.add_label('Bulk dispatch')
+        question = 'What motivated bulk dispatch when resources were limited?'
+        self.assertEqual(answer(self.root, question)['alternatives'], [])
+        event = self.approve_wordings()
+        saved = answer(self.root, question)
+        self.assertTrue(saved['alternatives'])
+        explanations.withdraw(
+            self.root,
+            self.f.request,
+            expected=event['event_sha256'],
+            reviewer='Synthetic reviewer',
+            reason='Needs another review.',
+        )
+        current = revalidate(self.root, saved)
+        self.assertEqual(current['status'], 'changed')
+        self.assertEqual(current['current']['alternatives'], [])
+        self.approve_wordings()
+        (self.root / self.f.source['body_path']).write_text('Corrupted source')
+        with self.assertRaises(ValueError):
+            answer(self.root, question)
 
     def test_stale_explanation_is_not_offered_as_an_available_alternative(self):
         from knot.writing.notes import save_note

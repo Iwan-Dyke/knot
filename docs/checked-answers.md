@@ -65,8 +65,12 @@ knot_answer(
 Each option also identifies the decision, title and review event. KNOT checks
 current approval, source validity and access before offering it, then checks again
 when selected. No personal knowledge is modified by discovery or selection.
-The relevance heuristic is lexical and can miss useful choices or suggest a related
-question with a different scope.
+Discovery compares reviewed wordings, curated titles and visible decision labels,
+including alternate labels in the scoped view. A decision-label term can surface
+choices for a longer question; generic metadata such as “note” and “source” does
+not count as a name match. The heuristic is lexical and can miss useful choices
+or suggest a related question with a different scope. Labels do not resolve
+identity or establish that the proposed question preserves every condition.
 
 At most five alternatives are returned and at most five distinct artifact requests
 are verified for navigation. `alternatives_truncated` means further candidates
