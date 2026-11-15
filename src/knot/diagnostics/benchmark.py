@@ -51,10 +51,13 @@ def _validate_labels(root, manifest):
                 raise ValueError(f'Invalid source judgement: {question["id"]}')
 
 
-def _assess(root, store, result, question):
+def _verified_spans(root, store, result):
+    """Verify only evidence actually serialized, never credit unreturned ancestors."""
     reader = _Evidence(root, store)
-    covered, judged_passages = set(), set()
-    for source in result['sources'].values():
+    assertion_sources = {
+        key for assertion in result.get('assertions', {}).values() for key in assertion['sources']
+    }
+    for key, source in result['sources'].items():
         text, recorded = reader.revision(source['revision'])
         quote = _quotation(result, source)
         if (
@@ -75,7 +78,61 @@ def _assess(root, store, result, question):
         )
         if offset is not None and (offset < 0 or text[offset : offset + len(quote)] != quote):
             raise ValueError('Returned citation has an invalid character locator')
-        for index, label in enumerate(question['judgements']):
+        line = source.get('locator', {}).get('startLine')
+        if line is not None and offset is not None and int(line) != text[:offset].count('\n') + 1:
+            raise ValueError('Returned citation has an invalid line locator')
+        kind = (
+            'curated_text'
+            if recorded.get('representation') == 'CuratedKnowledge'
+            else 'assertion_evidence'
+            if key in assertion_sources
+            else 'source_passage'
+        )
+        yield recorded, quote, offset, kind, source['passage']
+        derivation = source.get('native_note', {}).get('derivation')
+        if derivation is None:
+            continue
+        # A valid quotation inserted into another note's metadata is still a forged citation.
+        if derivation != recorded.get('native_note', {}).get('derivation'):
+            raise ValueError('Returned curated provenance differs from the recorded revision')
+        for pin in derivation['sources']:
+            original, citation = reader.revision(pin['revision'])
+            start, exact = pin['character_offset'], pin['quote']
+            if (
+                any(pin[field] != citation[field] for field in ('sha256', 'text_sha256'))
+                or start < 0
+                or original[start : start + len(exact)] != exact
+                or original[:start].count('\n') + 1 != pin['start_line']
+            ):
+                raise ValueError('Returned curated provenance failed the benchmark integrity check')
+            yield citation, exact, start, 'curated_provenance', source['passage']
+
+
+def _unique_judgements(question):
+    labels = {}
+    for index, label in enumerate(question['judgements']):
+        key = (label['path'], label['sha256'], label['character_offset'], label['quote'])
+        if key in labels:
+            _, previous = labels[key]
+            if previous['judgement'] != label['judgement']:
+                raise ValueError('Conflicting judgements for the same source span')
+            previous['qualification'] = previous.get('qualification', False) or label.get(
+                'qualification', False
+            )
+        else:
+            labels[key] = (index, dict(label))
+    return dict(labels.values())
+
+
+def _assess(root, store, result, question):
+    covered, judged_passages, spans = set(), set(), set()
+    representations, checked = {}, 0
+    labels = _unique_judgements(question)
+    for source, quote, offset, kind, passage in _verified_spans(root, store, result):
+        checked += 1
+        spans.add((source['text_path'], source['text_sha256'], offset, quote))
+        hits = representations.setdefault(kind, set())
+        for index, label in labels.items():
             start = label['character_offset']
             if (
                 label['path'] == source['text_path']
@@ -85,10 +142,11 @@ def _assess(root, store, result, question):
                 and start + len(label['quote']) <= offset + len(quote)
             ):
                 covered.add(index)
-                judged_passages.add(source['passage'])
-    relevant = {i for i, j in enumerate(question['judgements']) if j['judgement'] == 'Relevant'}
-    irrelevant = set(range(len(question['judgements']))) - relevant
-    qualified = {i for i in relevant if question['judgements'][i].get('qualification')}
+                hits.add(index)
+                judged_passages.add(passage)
+    relevant = {i for i, j in labels.items() if j['judgement'] == 'Relevant'}
+    irrelevant = set(labels) - relevant
+    qualified = {i for i in relevant if labels[i].get('qualification')}
     hits, wrong = covered & relevant, covered & irrelevant
     return {
         'relevant_retrieved': sorted(hits),
@@ -98,7 +156,14 @@ def _assess(root, store, result, question):
         'judged_precision': len(hits) / len(hits | wrong) if hits | wrong else None,
         'qualification_recall': len(covered & qualified) / len(qualified) if qualified else None,
         'unjudged_passages': len(set(result['passages']) - judged_passages),
-        'citation_integrity': {'checked': len(result['sources']), 'valid': len(result['sources'])},
+        'citation_integrity': {'checked': checked, 'valid': checked},
+        'evidence_accounting': {
+            'version': 2,
+            'unique_spans': len(spans),
+            'by_representation': {
+                kind: sorted(indices & relevant) for kind, indices in representations.items()
+            },
+        },
         'unsupported_conclusions': None,
         'independent_support_review': 'Pending',
     }

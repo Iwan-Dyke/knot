@@ -262,6 +262,14 @@ success does not count as natural-language interpretation. Reports preserve labe
 authorship, independent-review state and unmeasured effort rather than inventing
 them. Private live manifests and reports remain outside the application.
 
+The diagnostic's version 2 manifest compares retrieval with the current checked-answer
+router, including reviewed explanations and related-question navigation. It checks
+frozen expected interpretations and exact explanation text, and counts suggestions
+separately from conclusive answers. Version 1 preserves the original coverage
+comparison. A declared independent review requires separate reviewer attribution;
+that declaration is not authenticated or inferred from explanation approval.
+This extends the measurement tool, not the supported question contracts.
+
 Historical replay, identity evaluation and independently reviewed, representative
 use-case measurement remain outstanding. The implementation stages are:
 

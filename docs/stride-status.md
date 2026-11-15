@@ -141,6 +141,110 @@ made 24 calls through the saved read-only MCP configuration. All 1,300 tracked
 dataset metadata files were unchanged. No source, assertion, approval or question
 mapping was added or changed.
 
+## Repeatable measurement of the current router
+
+The [comparison diagnostic](coverage-benchmark.md#evaluate-the-current-checked-answer-router)
+now accepts version 2 manifests for the current checked-answer router. The original
+version 1 route only measured coverage questions, so it could not assess the newer
+explanation and navigation contracts. Version 2 compares frozen expected status,
+route, canonical request, coverage outcomes and exact explanation text; suggestions
+are counted separately and never selected automatically. Source verification,
+repeatability, output budgets and dataset-change checks remain in place. Declared
+independent review requires attribution distinct from the label author, without
+claiming to authenticate that declaration.
+
+A 2026-11-14 integration check reused the twelve-question development exercise
+above, transferring expectations from its frozen manifest and source-backed
+previews before running the diagnostic. All twelve checked outcomes matched; two
+returned the expected approved answer and seven unsupported questions offered
+navigation choices. Two runs per route made 48 owner-local API calls with a
+24,000-character ceiling. Responses repeated identically, all 58 citation occurrences
+in the retained results verified, and all 1,306 tracked dataset metadata files
+remained unchanged. No approvals, wordings or source notes were changed.
+`just check` passed 733 tests, Ruff lint and formatting. The full check needed a
+run outside the sandbox after an existing in-process MCP test stalled there;
+the focused benchmark tests passed within the sandbox.
+
+This validates the reusable measurement path, not an improvement in answer coverage.
+The questions and expectations remain reused, assistant-authored development
+material. Additional ordinary questions with independently reviewed expectations
+are still needed; running this diagnostic does not supply that review.
+
+## Fresh-question development exercise and transcription fix
+
+A further 2026-11-14 exercise froze eight new assistant-authored question wordings
+after source inspection, with substantive answer expectations, exact source labels
+and expected router outcomes recorded separately. The questions covered existing
+decision explanations, another decision rationale, source qualifications, coding
+preferences and product behaviour. Two previously registered controls were kept
+outside the fresh-question denominator. Independent review was requested but had
+not been received; the manifest explicitly records that limitation. These are new
+wordings, not independently collected or held-out user traffic.
+
+All eight fresh questions were unsupported; one offered two related questions.
+Both registered controls returned their exact approved answers. This matched the
+frozen contract expectations but gave **0/8 direct answers on the fresh questions**.
+Hybrid retrieval returned four of eleven complete labelled source spans. That
+metric excludes useful partial passages and separately curated restatements; it
+is not answer accuracy or proof that other knowledge is absent.
+
+Inspecting the misses exposed a format-handling defect: Markdown transcriptions
+of binary documents were segmented using the original snapshot's extension,
+treating a multi-section notebook as one large passage. A synthetic regression
+reproduced an omitted relevant section under a tight budget. Retrieval now uses
+the verified transcription's format, preserving original snapshots, both hashes,
+warnings and exact offsets. Native and ordinary extracted-source handling is
+unchanged. See [ADR 0020](../design_decisions/0020-question-aware-hybrid-retrieval.md).
+
+The frozen before/after comparison made 80 read-only owner-local API calls. Fresh
+answer coverage remained 0/8, controls remained 2/2, and full-span recall remained
+4/11 with no per-case full-span regressions. Post-run inspection found that one
+relevant curated prioritisation account now appeared; this was not retroactively
+added to the source labels or counted as an independently validated accuracy gain.
+Both runs per route were identical within each implementation. All 50 citation
+occurrences in the retained after-results verified, and all 1,306 tracked dataset
+metadata files remained unchanged. No questions or reusable answers were approved.
+`just check` passed 734 tests, Ruff lint and formatting outside the sandbox; all
+72 focused retrieval tests passed within it.
+
+The evidence supports the transcription correction. It does not establish broader
+question understanding. Unregistered wording, missing approved artifacts and
+unimplemented question contracts remain distinct coverage gaps; independent
+expectation review is still pending. Do not silently map those questions or tune
+the labels to make this development set pass.
+
+## Discovery through decision names and recorded context
+
+Navigation now compares reviewed wordings with visible decision labels, alternate
+labels and curated titles. A decision-label term can surface choices for a longer
+question without requiring its extra conditions to match the reviewed wording.
+Generic metadata descriptors are filtered; shared labels remain distinct choices.
+This extends [ADR 0059](../design_decisions/0059-related-reviewed-question-navigation.md),
+with the same explicit-selection boundary and bounded eligibility checks.
+
+Repeating the frozen eight-question exercise increased responses with alternatives
+from **1/8 to 3/8**. Both fresh questions about already approved rationales now offer
+their intended artifacts. The third asks about completion and receives a related
+rationale option, which does not answer the completion question. Fresh direct
+answers remain **0/8**, and both registered controls still return their exact answers.
+
+The earlier twelve-question regression set still returns two direct answers;
+responses with alternatives increased from seven to nine. Inspection found a
+false positive: shared migration terminology offered a rationale for a different
+decision on a performance question. This is a limitation of broader lexical
+discovery, not verified relevance or equivalent intent. No wording or expectation
+was changed to make the result count as an answer. Actual user selection and task
+completion have not been measured, and independent expectation review is pending.
+
+The two reruns made 88 read-only owner-local API calls. Every frozen router contract
+expectation matched, repeated responses were identical, all 108 citation occurrences
+in retained results verified, and no response exceeded the output budget. Both
+manifests and all 1,306 tracked dataset metadata files were unchanged. No suggestion
+was automatically selected and no source, approval, wording or grant changed.
+`just check` passed 741 tests, Ruff lint and formatting. Seven new synthetic tests
+cover long questions, alternate/shared labels, titles, generic metadata, hidden
+labels and current approval/evidence checks.
+
 ## Still not implemented or established
 
 | Capability or evidence | Status / what would be required |

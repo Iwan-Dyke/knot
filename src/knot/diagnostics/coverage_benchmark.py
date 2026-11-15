@@ -1,4 +1,4 @@
-"""Compare retrieval and deterministic coverage using a frozen, owner-local question set."""
+"""Compare retrieval and checked answers using a frozen, owner-local question set."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from time import perf_counter
 
 from knot.diagnostics.benchmark import _assess, _distribution, _validate_labels
-from knot.evaluation import CoverageRequest, answer_question, evaluate
+from knot.evaluation import CoverageRequest, answer_question, answering, evaluate, explanations
 from knot.evaluation.snapshot import Snapshot, canonical_hash
 from knot.interfaces.access import AccessScope
 from knot.retrieval_engine.context import _prepare
@@ -20,9 +20,44 @@ from knot.shared.datasets import cli_data_root
 OUTCOMES = {'support_found', 'no_qualifying_support', 'unknown'}
 
 
+def _validate_answer(expected):
+    status, route = expected['status'], expected['route']
+    request, outcomes, answer = expected['request'], expected['outcomes'], expected['answer']
+    if status not in {'answered', 'unknown', 'needs_selection', 'unsupported_question'}:
+        raise ValueError('Invalid expected checked-answer status')
+    if route not in {None, 'framework_coverage', 'decision_explanation'}:
+        raise ValueError('Invalid expected checked-answer route')
+    if status == 'answered' and (route is None or request is None):
+        raise ValueError('An answered question needs an expected route and request')
+    if status == 'unsupported_question' and (route is not None or request is not None):
+        raise ValueError('An unsupported question has no interpreted route or request')
+    if request is not None:
+        if route == 'framework_coverage':
+            parsed = CoverageRequest.from_dict(request)
+            if (
+                not isinstance(outcomes, list)
+                or len(outcomes) != len(parsed.criteria)
+                or any(value not in OUTCOMES for value in outcomes)
+            ):
+                raise ValueError('Supply an expected outcome for each selected criterion')
+        elif route == 'decision_explanation':
+            if not explanations._supported(explanations._request(request)):
+                raise ValueError('Supply the canonical decision-explanation request')
+        else:
+            raise ValueError('An expected request needs a route')
+    if (route != 'framework_coverage' or request is None) and outcomes is not None:
+        raise ValueError('Only a coverage request has criterion outcomes')
+    if status == 'answered' and route == 'decision_explanation':
+        if not isinstance(answer, str) or not answer.strip():
+            raise ValueError('Supply the exact expected explanation answer')
+    elif answer is not None:
+        raise ValueError('Exact answer labels apply only to answered decision explanations')
+
+
 def _validate(root, manifest):
     if (
-        manifest.get('version') != 1
+        type(manifest.get('version')) is not int
+        or manifest['version'] not in (1, 2)
         or not isinstance(manifest.get('label_author'), str)
         or not manifest['label_author'].strip()
         or type(manifest.get('independently_reviewed')) is not bool
@@ -32,17 +67,28 @@ def _validate(root, manifest):
         or not 1 <= len(manifest['questions']) <= 50
     ):
         raise ValueError(
-            'Supply version 1, label authorship, review state, selection and 1–50 cases'
+            'Supply version 1 or 2, label authorship, review state, selection and 1–50 cases'
         )
+    if manifest['version'] == 2 and manifest['independently_reviewed']:
+        reviewer = manifest.get('independent_reviewer')
+        if (
+            not isinstance(reviewer, str)
+            or not reviewer.strip()
+            or reviewer.strip().casefold() == manifest['label_author'].strip().casefold()
+        ):
+            raise ValueError('Identify an independent reviewer distinct from the label author')
     for question in manifest['questions']:
         if not question['id'] or not question['category']:
             raise ValueError('Each case needs an id and category')
         expected = question['expected']
+        if not expected['rationale'].strip():
+            raise ValueError('Explain the expected result independently of the benchmark output')
+        if manifest['version'] == 2:
+            _validate_answer(expected)
+            continue
         status = expected['question_status']
         if status not in {'evaluated', 'needs_selection', 'unsupported_question'}:
             raise ValueError('Invalid expected question status')
-        if not expected['rationale'].strip():
-            raise ValueError('Explain the expected result independently of the benchmark output')
         if expected['request'] is None:
             if status == 'evaluated' or expected['outcomes'] is not None:
                 raise ValueError('An evaluated question needs an expected request and outcomes')
@@ -62,6 +108,10 @@ def _evidence_package(root, store, receipt):
     # Reuse the retrieval benchmark's independent source/locator checks for both routes.
     package = {'passages': {}, 'sources': {}}
     reader = _Evidence(root, store)
+    for source in receipt.get('sources', []):
+        key = str(len(package['sources']))
+        package['passages'][key] = source['quote']
+        package['sources'][key] = {**source, 'passage': key}
     for assertion in receipt.get('assertions', {}).values():
         sources = list(assertion['sources'])
         for span in assertion.get('evidence_account_sources', []):
@@ -72,9 +122,12 @@ def _evidence_package(root, store, receipt):
                 or text[span['start'] : span['end']] != span['quote']
             ):
                 raise ValueError('Invalid evidence-account citation')
+            # The receipt delivered this exact span, not the derivation metadata
+            # loaded while verifying it. Do not credit unreturned ancestor pins.
+            delivered_source = {key: value for key, value in source.items() if key != 'native_note'}
             sources.append(
                 {
-                    **source,
+                    **delivered_source,
                     'quote': span['quote'],
                     'locator': {'characterOffset': str(span['start'])},
                 }
@@ -89,11 +142,15 @@ def _evidence_package(root, store, receipt):
 def _score(root, store, question, method, result, max_chars):
     size = len(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(',', ':')))
     receipt = result.get('evaluation', {}) if method == 'checked_question' else result
+    if method == 'checked_answer':
+        receipt = result.get('result', {})
+        if result['route'] == 'framework_coverage':
+            receipt = receipt.get('evaluation', {})
     status = (
         'evidence_only'
         if method == 'hybrid'
         else result['status']
-        if method == 'checked_question'
+        if method in ('checked_question', 'checked_answer')
         else 'evaluated'
     )
     fits = size <= max_chars
@@ -104,8 +161,25 @@ def _score(root, store, question, method, result, max_chars):
     metrics = _assess(root, store, evidence, question)
     outcomes = [row['outcome'] for row in receipt.get('criteria', [])] if fits else []
     expected = question['expected']
-    interpretation = outcome_match = contract = None
-    if fits and method != 'hybrid':
+    interpretation = outcome_match = contract = answer_match = None
+    if fits and method == 'checked_answer':
+        wanted = expected['request']
+        if wanted is not None and expected['route'] == 'framework_coverage':
+            wanted = CoverageRequest.from_dict(wanted).to_dict()
+        interpretation = result['route'] == expected['route'] and result['request'] == wanted
+        outcome_match = (
+            outcomes == expected['outcomes'] if expected['outcomes'] is not None else None
+        )
+        answer_match = (
+            result.get('answer') == expected['answer'] if expected['answer'] is not None else None
+        )
+        contract = (
+            status == expected['status']
+            and interpretation
+            and outcome_match is not False
+            and answer_match is not False
+        )
+    elif fits and method != 'hybrid':
         contract = status == (
             expected['question_status'] if method == 'checked_question' else 'evaluated'
         )
@@ -124,17 +198,32 @@ def _score(root, store, question, method, result, max_chars):
         'interpretation_match': interpretation,
         'outcomes_match': outcome_match,
         'contract_match': contract,
-        'conclusive_answer': status == 'evaluated' and bool(outcomes) and 'unknown' not in outcomes,
+        'conclusive_answer': status == 'answered'
+        or (status == 'evaluated' and bool(outcomes) and 'unknown' not in outcomes),
         'characters': size,
         'within_budget': fits,
         'omissions': result.get('omissions'),
-        'reasons': receipt.get('reasons', []),
+        'reasons': receipt.get('reasons', result.get('reasons', [])),
+        **(
+            {
+                'route': result['route'],
+                'answer_match': answer_match,
+                'alternatives_offered': len(result.get('alternatives', [])) if fits else 0,
+            }
+            if method == 'checked_answer'
+            else {}
+        ),
     }
 
 
 def _summarise(cases):
     summary = {}
-    for name in ('hybrid', 'checked_question', 'structured_request'):
+    names = (
+        ('hybrid', 'checked_answer')
+        if 'checked_answer' in cases[0]['methods']
+        else ('hybrid', 'checked_question', 'structured_request')
+    )
+    for name in names:
         rows = [case['methods'][name] for case in cases if name in case['methods']]
         relevant = sum(len(row['relevant_retrieved']) + len(row['relevant_missed']) for row in rows)
         hits = sum(len(row['relevant_retrieved']) for row in rows)
@@ -149,7 +238,9 @@ def _summarise(cases):
             'interpretation_checks': sum(row['interpretation_match'] is not None for row in rows),
             'interpretation_failures': sum(row['interpretation_match'] is False for row in rows),
             'unknown_answers': sum(
-                row['status'] == 'evaluated' and 'unknown' in row['outcomes'] for row in rows
+                row['status'] == 'unknown'
+                or (row['status'] == 'evaluated' and 'unknown' in row['outcomes'])
+                for row in rows
             ),
             'unsupported_questions': sum(row['status'] == 'unsupported_question' for row in rows),
             'unresolved_questions': sum(row['status'] == 'needs_selection' for row in rows),
@@ -164,6 +255,11 @@ def _summarise(cases):
                 else None
             ),
         }
+        if name == 'checked_answer':
+            summary[name].update(
+                questions_with_alternatives=sum(row['alternatives_offered'] > 0 for row in rows),
+                alternatives_offered=sum(row['alternatives_offered'] for row in rows),
+            )
     return summary
 
 
@@ -186,9 +282,16 @@ def compare(root, manifest, *, runs=2, max_chars=24000, include_context=False):
             'hybrid': lambda: retrieve(
                 root, question=question['question'], mode='hybrid', policy=policy, scope=scope
             ),
-            'checked_question': lambda: answer_question(root, question['question'], scope=scope),
         }
-        if question['expected']['request'] is not None:
+        if manifest['version'] == 2:
+            methods['checked_answer'] = lambda: answering.answer(
+                root, question['question'], scope=scope
+            )
+        else:
+            methods['checked_question'] = lambda: answer_question(
+                root, question['question'], scope=scope
+            )
+        if manifest['version'] == 1 and question['expected']['request'] is not None:
             request = CoverageRequest.from_dict(question['expected']['request'])
             methods['structured_request'] = lambda: evaluate(root, request, scope=scope)
         case = {
@@ -220,11 +323,16 @@ def compare(root, manifest, *, runs=2, max_chars=24000, include_context=False):
     _validate_labels(root, manifest)
     snapshot.verify()
     return {
-        'benchmark_version': 1,
+        'benchmark_version': manifest['version'],
         'scope': 'Owner-local development comparison; partial source-first labels, no independent truth or general-language guarantee.',
         'manifest_sha256': canonical_hash(manifest),
         'label_author': manifest['label_author'],
         'independently_reviewed': manifest['independently_reviewed'],
+        **(
+            {'independent_reviewer': manifest.get('independent_reviewer')}
+            if manifest['version'] == 2
+            else {}
+        ),
         'selection': manifest['selection'],
         'curation_minutes': manifest.get('curation_minutes'),
         'independent_review_minutes': manifest.get('independent_review_minutes'),
