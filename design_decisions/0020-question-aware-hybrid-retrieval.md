@@ -34,6 +34,13 @@ revision hashes and recognised qualifications. Explicit interpretation boundarie
 may separate an evidence body from commentary when caveats remain intact. Unknown
 cross-section or cross-note qualifications are not automatically resolved.
 
+For a stored transcription, determine section syntax from its verified text path,
+not the original binary snapshot's extension. Otherwise a Markdown notebook
+transcription becomes one oversized unit and its focused evidence may be omitted.
+This changes passage boundaries only: retain the original snapshot, both hashes,
+transcription warnings and exact text locators. Native notes keep their declared
+format; ordinary extracted documents retain their existing format handling.
+
 Seed context requires meaningful label terms, a verified assertion anchor or
 eligible same-document context. Same-name matches remain lexical relevance, not
 identity acceptance. Unassociated notes remain eligible for question-only search.

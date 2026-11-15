@@ -1,3 +1,4 @@
+import copy
 import json
 import subprocess
 import tempfile
@@ -671,6 +672,57 @@ class QuestionRetrievalTests(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertTrue(large['passages'][found[0]['passage']].endswith('This is not delivered.\n'))
         self.assertGreater(large['usage']['utf8_bytes'], large['usage']['characters'])
+
+    def test_stored_transcriptions_use_their_text_format_with_exact_provenance(self):
+        from knot.retrieval_engine.response import _quotation
+
+        original = b'synthetic scanned notebook'
+        (self.root / 'sources/notebook.pdf').write_bytes(original)
+        revision = 'urn:revision:scanned-notebook'
+        for key, value in (
+            ('snapshotPath', 'sources/notebook.pdf'),
+            ('sha256', digest(original)),
+            ('warning', 'Unreviewed transcription; the original scan remains authoritative.'),
+        ):
+            self.dataset.add(revision, VOCAB + key, value, literal=True)
+        self.dataset.add('urn:document:notebook', RDF_TYPE, VOCAB + 'Document')
+        self.dataset.add('urn:document:notebook', VOCAB + 'revision', revision)
+        base = copy.deepcopy(self.dataset)
+        for suffix, heading in (('md', '#'), ('org', '*')):
+            with self.subTest(format=suffix):
+                self.dataset = copy.deepcopy(base)
+                preamble = f'{heading} Background\n' + 'Unrelated background. ' * 400 + '\n'
+                selected = f'{heading} Zephyr retries λ\nRetries are planned, not delivered.\n'
+                text = preamble + selected
+                path = 'sources/transcription.' + suffix
+                (self.root / path).write_text(text)
+                self.dataset.add(revision, VOCAB + 'transcriptionPath', path, literal=True)
+                self.dataset.add(
+                    revision, VOCAB + 'transcriptionSha256', digest(text.encode()), literal=True
+                )
+                self.save()
+                result = retrieve(
+                    self.root,
+                    question='What retries are planned for Zephyr?',
+                    mode='text',
+                    policy=Policy(max_chars=5000, max_passages=1),
+                )
+                found = [s for s in result['sources'].values() if s['revision'] == revision]
+                self.assertEqual(len(found), 1)
+                source = found[0]
+                self.assertEqual(_quotation(result, source), selected)
+                self.assertEqual(source['snapshot'], 'sources/notebook.pdf')
+                self.assertEqual(source['sha256'], digest(original))
+                self.assertEqual(source['text_path'], path)
+                self.assertEqual(source['text_sha256'], digest(text.encode()))
+                self.assertEqual(source['verification'], 'StoredTranscription')
+                self.assertIn('Unreviewed transcription', source['warnings'][0])
+                locator = source['locator']
+                self.assertEqual(int(locator['characterOffset']), len(preamble))
+                self.assertEqual(int(locator['startLine']), preamble.count('\n') + 1)
+                self.assertEqual(locator['heading_path'], ['Zephyr retries λ'])
+                self.assertTrue(locator['section_complete'])
+                self.assertFalse(locator['document_complete'])
 
     def test_ranked_traversal_limits_and_invalid_routing_evidence(self):
         for change in ({'max_depth': 1}, {'max_expanded': 1}):

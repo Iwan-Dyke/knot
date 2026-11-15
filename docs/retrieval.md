@@ -150,9 +150,13 @@ Text context requires meaningful seed-label terms (excluding descriptors such as
 verified revision of the same logical document. `source_context` records this as
 `seed_context`, including `EntityAssertionInRevision`; its `entity_link`
 remains `LexicalOnly`, and `claim_review` is null. Same-name matches do not resolve
-identities. Sources without headings, including stored image transcriptions, remain
-whole sections. Source context can retain original statements later corrected or
-rejected as assertions; it never restores those active domain triples.
+identities. Stored transcriptions use their own text format for section boundaries:
+Markdown or Org headings can divide a transcription even when its preserved original
+is a PDF, image or native notebook. Citations retain both hashes, original snapshot,
+transcription path, warnings and exact text offsets. Plain-text transcriptions and
+other sources without recognised headings remain whole sections. Source context
+can retain original statements later corrected or rejected as assertions; it never
+restores those active domain triples.
 
 Accepted-only mode excludes all source-only context and still requires every hop
 of a graph path to be Accepted. The response flags this exclusion, including for

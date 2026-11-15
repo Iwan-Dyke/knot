@@ -423,6 +423,9 @@ def _text_sections(search, verified, matched_documents, requested_unit):
         snapshot = (
             ('note.md' if native['format'] == 'markdown' else 'note.org')
             if native
+            # The original scan's extension does not describe its verified transcription.
+            else citation['text_path']
+            if citation['verification'] == 'StoredTranscription'
             else citation['snapshot']
         )
         units = _sections(text, snapshot)
