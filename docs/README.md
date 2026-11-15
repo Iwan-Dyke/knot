@@ -28,6 +28,8 @@ unimplemented release work is listed separately in [release preparation](release
 - [Architecture](architecture.md): current component ownership and data flow.
 - [Library performance](library-performance.md): synthetic profiles, browser checks and recorded measurement limits.
 - [Coverage comparison](coverage-benchmark.md): frozen source-backed questions, retrieval versus evaluation, answer coverage and limitations.
+- [Curation diagnostic](curation-diagnostic.md): read-only prompts from verified retrieval misses and controlled curation experiments.
+- [Retrieval curation evaluation](retrieval-curation-evaluation.md): accounting correction, controlled curation gains, regressions and remaining budget constraints.
 - [Viewer licences](viewer-licences.md): exact embedded assets, complete notices and upgrade checks.
 - [Contributing](../CONTRIBUTING.md): setup, checks and change expectations.
 - [Architecture decision records](../design_decisions/README.md): rationale, alternatives and decision history.
