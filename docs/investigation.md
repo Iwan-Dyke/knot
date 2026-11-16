@@ -123,7 +123,7 @@ authorisation changes. Cached pins describe the retrieved snapshot, not current 
 | MCP attempts | 6 admitted read dispatches, including errors and uncertain transport attempts. Rejected proposals do not dispatch. Tool catalogue discovery is protocol setup, not an evidence read. |
 | Graph-capable requests | 2 `knot_retrieve` calls in graph/hybrid mode, or gather dispatch selected by `subjects`, non-default `objective` or nonempty `exclude`, **including nominal text mode**. One request can do several graph searches; this is not a traversal/edge counter. |
 | Text retrieval | A text call outside gather uses MCP and character allowances, plus selected expansions when applicable. It is not charged as graph traversal merely because source verification loads RDF. |
-| Selected expansions | 2 conservative selections: each seed plus each selected subject on every admitted call. Multiple/duplicate subjects and repeat reads are charged before the server deduplicates. Counts describe selections, not actual file I/O. |
+| Selected expansions | 2 conservative selections: each selected subject plus one when `seed` or `note_revision` is supplied, on every admitted call. A seed and its explicit revision identify one read, not two. Multiple/duplicate subjects and repeat reads are charged before the server deduplicates. Counts describe selections, not actual file I/O. |
 | Returned characters | 60,000 cumulative, at most 12,000 per response. Use existing canonical MCP `result_size`, including tool-result framing; Unicode characters, not bytes/tokens. Clamp `max_chars` to remaining allowance before dispatch. Less than 2,048 available closes research. Unknown transport failure retains the full reserved response charge. Oversized replies fail explicitly, retaining earlier cache. |
 | Research decisions | Up to 7 within 8 total callback invocations. Rejected proposals and failed/timed-out callbacks consume a decision. No hidden provider retries are counted here. |
 | Final synthesis decisions | At most 1 within those same 8, no MCP calls. Re-presenting cached replies consumes model context but no new retrieved characters. A direct research answer needs no extra synthesis call. |
@@ -137,6 +137,13 @@ answers are withheld. This cooperative async boundary cannot stop arbitrary code
 provider-side generation, external tools or hidden retries.
 
 ## Trust and validation
+
+The historical experiment undercharged explicit unseeded `note_revision` reads.
+This accounting correction is separate from finalisation: an explicit historical
+read now consumes one selected expansion, including repeated reads. Seed plus
+revision still consumes one. No research allowance is enlarged, and nominal
+text-mode gather remains graph-capable. Dedicated regressions exercise historical
+reads through the actual MCP client, including rejection before dispatch.
 
 Source verification, exact quotations, hashes, locators, scope, review states and
 qualification packaging remain the existing server's responsibility. The

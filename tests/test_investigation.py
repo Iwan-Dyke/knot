@@ -288,6 +288,47 @@ class InvestigationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(client.calls), 1)
         self.assertEqual(result['research_stop_reason'], 'expansions_budget')
 
+    async def test_unseeded_explicit_revision_is_rejected_without_expansion_allowance(self):
+        selected = tool(note_revision=self.note['revision'], mode='text')
+        result, client, _ = await self.execute(
+            ScriptedModel(selected, answer()), limits=replace(Limits(), expansions=0)
+        )
+        self.assertEqual(result['research_stop_reason'], 'expansions_budget')
+        self.assertEqual(result['rejected_action'], selected)
+        self.assertEqual(result['usage']['expansions'], 0)
+        self.assertEqual(client.calls, [])
+
+    async def test_repeated_unseeded_historical_read_uses_one_expansion_per_attempt(self):
+        old = self.note
+        save_note(
+            self.root,
+            old['note'],
+            'A different current account.\n',
+            expected=old['revision'],
+            agent='Synthetic author',
+            reason='Synthetic revision',
+        )
+        selected = tool(note_revision=old['revision'], mode='text')
+        model = ScriptedModel(selected, selected, answer())
+        result, client, _ = await self.execute(model, limits=replace(Limits(), expansions=1))
+        self.assertEqual(result['usage']['expansions'], 1)
+        self.assertEqual(result['usage']['graph_calls'], 0)
+        self.assertEqual(result['research_stop_reason'], 'expansions_budget')
+        self.assertEqual(len(client.calls), 1)
+        payload = json.loads(result['history'][0]['response']['content'][0]['text'])
+        self.assertIn(old['body'], payload['passages'].values())
+        self.assertIn('ExplicitHistoricalRevision', json.dumps(payload))
+        self.assertNotIn('A different current account.', json.dumps(model.requests))
+
+    async def test_seed_and_its_explicit_revision_are_one_selected_expansion(self):
+        selected = tool(seed=self.note['note'], note_revision=self.note['revision'], mode='text')
+        model = ScriptedModel(selected, answer())
+        result, client, _ = await self.execute(model, limits=replace(Limits(), expansions=1))
+        self.assertEqual(result['status'], 'answered')
+        self.assertEqual(result['usage']['expansions'], 1)
+        self.assertEqual(len(client.calls), 1)
+        self.assertFalse(result['history'][0]['tool_error'])
+
     async def test_reaching_graph_cap_does_not_block_a_still_legal_text_search(self):
         model = ScriptedModel(tool(seed=SEED), tool(question='planned', mode='text'), answer())
         result, client, _ = await self.execute(model, limits=replace(Limits(), graph_calls=1))

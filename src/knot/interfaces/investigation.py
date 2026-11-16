@@ -129,7 +129,9 @@ class Investigation:
         subjects = args.get('subjects') or []
         if not isinstance(subjects, list):
             raise ValueError('Invalid subjects')
-        expansions = len(subjects) + int(bool(args.get('seed')))
+        # An explicit revision selects a source even without a seed. Seed plus
+        # revision identifies one note read, not two selected expansions.
+        expansions = len(subjects) + int(bool(args.get('seed') or args.get('note_revision')))
         usage, limits = self._state['usage'], self._limits
         for field, charge in (('calls', 1), ('graph_calls', graph), ('expansions', expansions)):
             if usage[field] + charge > getattr(limits, field):

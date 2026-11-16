@@ -110,6 +110,14 @@ It reuses server verification and packaging unchanged. MCP initialization guidan
 explains the distinction, but only this dispatch path enforces cumulative limits;
 the server remains stateless. Existing direct/checked clients are not replaced.
 
+A separate accounting correction charges explicit unseeded historical
+`note_revision` reads as one selected expansion. Seed plus revision identifies
+one read, not two. This fixes an undercharge against the documented unit; it
+explained none of the original stops. Repeated/multiple selections still count,
+and nominal text-mode gather remains graph-capable. Allowances and retrieval
+dispatch/ranking are unchanged. Separate failing-then-passing MCP regressions
+cover the historical selection cases.
+
 Synthetic public-interface tests cover exhaustion, rejected graph/source requests,
 evidence and question preservation, finalisation without tools, scope/write
 isolation, checked replies, deadline and cancellation behaviour. They establish
