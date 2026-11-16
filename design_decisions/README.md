@@ -14,7 +14,7 @@ operate them. The [release checklist](../docs/release.md) tracks pending deliver
 | Organisation and frameworks | [0012](0012-use-career-framework-for-competencies.md), [0013](0013-preserve-framework-definitions-as-assertions.md), [0016](0016-basic-ontology-and-overlapping-themes.md), [0017](0017-review-theme-membership-separately.md) |
 | Ontology evolution and STRIDE-inspired evaluation | [0051](0051-reviewed-ontology-evolution.md), [0052](0052-bounded-deterministic-evaluation.md), [0054](0054-checked-coverage-question-answers.md), [0055](0055-current-receipt-revalidation.md), [0056](0056-reviewed-decision-explanations.md), [0057](0057-checked-routing-and-artifact-selection.md), [0058](0058-reviewed-alternative-question-wordings.md), [0059](0059-related-reviewed-question-navigation.md) |
 | Retrieval and discovery | [0019](0019-bounded-knowledge-retrieval-for-ai-context.md), [0020](0020-question-aware-hybrid-retrieval.md), [0023](0023-broad-discovery-and-selected-subject-retrieval.md), [0039](0039-share-retrieval-provenance-without-dropping-evidence.md), [0053](0053-question-only-direct-claim-retrieval.md) |
-| Evidence-grounded research and synthesis | [0060](0060-evidence-grounded-research-and-synthesis.md) (Proposed; instruction evaluation first) |
+| Evidence-grounded research and synthesis | [0060](0060-evidence-grounded-research-and-synthesis.md) (Proposed; opt-in termination correction implemented) |
 | Authoring and AI access | [0021](0021-scoped-local-mcp-server.md), [0025](0025-owner-local-note-cli.md), [0032](0032-guided-zettelkasten-authoring.md), [0033](0033-owner-mcp-authoring-and-runtime-diagnostics.md), [0050](0050-owner-local-library-authoring.md) |
 | Curation and naming | [0027](0027-source-preserving-knowledge-curation.md), [0028](0028-meaningful-entity-names-and-value-presentation.md), [0030](0030-continuous-knowledge-curation.md), [0046](0046-guided-source-backed-curation.md) |
 | Viewer and navigation | [0047](0047-unified-knowledge-library-and-graph-exploration.md), [0026](0026-live-offline-graph-filters.md), [0035](0035-notes-in-the-unified-graph.md), [0044](0044-extensible-visual-and-knowledge-themes.md), [0045](0045-persistent-visual-themes-and-css-palettes.md) |
@@ -59,8 +59,9 @@ Important relationships:
   Historical replay remains
   pending. 0051 remains unimplemented.
 - 0060 proposes evaluating stronger MCP research instructions over existing retrieval
-  and checked-answer contracts. It changes no runtime behaviour; a coordinator is
-  conditional on measured failures and a separate adoption decision.
+  and checked-answer contracts. The broader protocol remains unaccepted. An
+  explicitly authorised, opt-in Python client coordinator implements budget-aware
+  finalisation only; no general accuracy or trustworthiness gain is established.
 
 ## Decision register
 
@@ -132,7 +133,7 @@ not current command references; use the linked guides for today's behaviour.
 | [0057](0057-checked-routing-and-artifact-selection.md) | Route checked questions and select approved artifacts deterministically | Accepted for existing contracts | Implemented CLI, scoped MCP, selection revalidation and review-chain audit |
 | [0058](0058-reviewed-alternative-question-wordings.md) | Review alternative question wordings with decision explanations | Accepted for decision-explanation wording mappings | Implemented owner review, exact matching, scoped routing and revalidation |
 | [0059](0059-related-reviewed-question-navigation.md) | Offer reviewed questions without interpreting unsupported wording | Accepted for read-only navigation | Implemented bounded alternatives, source/access checks and revalidation |
-| [0060](0060-evidence-grounded-research-and-synthesis.md) | Evaluate evidence-grounded research before adding orchestration | Proposed | Not started; existing client guidance is the baseline |
+| [0060](0060-evidence-grounded-research-and-synthesis.md) | Evaluate evidence-grounded research before adding orchestration | Proposed | Opt-in client finalisation implemented; broader protocol unvalidated |
 
 ## Add or revise a decision
 

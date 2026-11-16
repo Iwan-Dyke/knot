@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-11-15
-- Implementation: Not started; existing client guidance is the baseline
+- Implementation: Limited opt-in client finalisation implemented; broader research protocol remains unvalidated
 - Related: [0020](0020-question-aware-hybrid-retrieval.md), [0023](0023-broad-discovery-and-selected-subject-retrieval.md), [0042](0042-retire-experiments-and-export-tool-only.md), [0052](0052-bounded-deterministic-evaluation.md), [0057](0057-checked-routing-and-artifact-selection.md)
 - Supersedes: None
 
@@ -68,7 +68,58 @@ semantic sufficiency judgements and natural-language synthesis. During stage 1,
 cumulative protocol compliance remains the client's responsibility and must be
 measured; KNOT must not claim enforcement that does not exist.
 
-This proposal changes no current instructions, tools, contracts or knowledge.
+The broader protocol below remains a proposal. The limited production implementation
+described next corrects termination only; it does not adopt that protocol or extend
+tools, checked contracts or authoritative knowledge.
+
+## Limited production implementation
+
+Added 2026-11-16 following explicit authorisation to implement the engineering
+correction while retaining opt-in use. ADR 0060 remains **Proposed**; its general
+research-protocol adoption gates have not been met.
+
+The experimental coordinator raised a terminal stop when a proposed retrieval
+exceeded a category budget. Its loop exited even when cached evidence and overall
+resources remained. A private controlled study of 30 questions, three repetitions
+per condition, produced 49/90 versus 55/90 fully correct substantive answers and
+19/90 versus 0/90 missing final responses. Missing responses despite complete
+labelled material evidence fell from 13/90 to 0/90. However, the correction added
+one unsupported material claim, and held-out correctness was unchanged at 15/18
+per condition. It failed the trustworthiness gate. These Codex-authored assessments,
+without independent human validation, justify no general answer-quality claim.
+A cached-evidence recovery diagnostic obtained 25/28 fully qualified correct
+outcomes, with failures retained; this was not literal continuation of the old runs.
+Private questions, source records and traces remain outside the public repository.
+
+The subsequent self/independent verification experiments did not establish useful
+improvement. Neither verification workflow is adopted. There is no second model,
+claim-extraction gate, new STRIDE contract or automatic knowledge publication.
+
+The supported opt-in [Python MCP client coordinator](../docs/investigation.md)
+implements only `research_open -> research_closed -> finalisation -> complete`.
+It rejects over-budget proposals before dispatch, retains the original question
+and complete replies, records the rejected action/reason, and reserves one decision
+and 60 seconds within the original eight-decision/600-second limits. Finalisation
+cannot dispatch tools and may yield a supported answer, qualified partial answer,
+abstention or explicit inability. Hard deadlines and overall limits prevail.
+
+Unlike the experimental subclass, this is a standalone, single-use client API
+using the existing MCP SDK and host-supplied callback, without experiment imports,
+model adapters, frozen benchmarks, token estimates or private file brokers.
+It reuses server verification and packaging unchanged. MCP initialization guidance
+explains the distinction, but only this dispatch path enforces cumulative limits;
+the server remains stateless. Existing direct/checked clients are not replaced.
+
+Synthetic public-interface tests cover exhaustion, rejected graph/source requests,
+evidence and question preservation, finalisation without tools, scope/write
+isolation, checked replies, deadline and cancellation behaviour. They establish
+mechanics, not semantic accuracy. Timeouts are cooperative; provider tokens,
+hidden retries, connection startup and an outer hard process deadline remain
+host responsibilities. No LangGraph or GraphRAG integration is justified here.
+
+The stages below describe the broader unaccepted research proposal. The narrow
+termination correction is an explicit implementation exception, not completion
+or acceptance of those stages.
 Future experimental success supports an explicit adoption decision; it does not
 automatically accept this ADR or authorise coordinator implementation.
 
@@ -317,11 +368,11 @@ inspect and tune a held-out set.
 
 | Stage | Deliverable and gate | Current status |
 | --- | --- | --- |
-| 0. Baseline/protocol | Frozen A, reviewed labels, scope-specific evidence, numeric decision thresholds, allowances and trace format | Not started |
-| 1. Instruction experiment | Isolated B, delivery/contract tests, paired client trials and independently graded failure analysis | Not started; depends on stage 0 |
+| 0. Baseline/protocol | Frozen A, reviewed labels, scope-specific evidence, numeric decision thresholds, allowances and trace format | Private studies completed with Codex labels; no independent human review |
+| 1. Instruction experiment | Isolated B, delivery/contract tests, paired client trials and independently graded failure analysis | No demonstrated adoption gain; broader protocol remains unaccepted |
 | 1 adoption decision | Adopt B only after gates; update canonical instructions and linked guide without broadening contracts | Not authorised by this ADR |
 | 2. Conditional coordinator design | Identify machine-addressable B failures; specify state, enforcement, packet and disposal in a separately accepted bounded design | Deferred; unnecessary if B is adequate |
-| 2 experiment/adoption | Synthetic state/isolation/budget tests, C-versus-B evaluation and explicit adoption decision | Deferred; no implementation now |
+| 2 experiment/adoption | Synthetic state/isolation/budget tests, C-versus-B evaluation and explicit adoption decision | Broader coordinator deferred; only opt-in termination correction implemented above |
 
 Future instruction changes must retain MCP initialization/transport, source,
 scope and checked-answer tests and pass `just check`. A coordinator additionally
@@ -329,9 +380,10 @@ needs deterministic transition, retry accounting, exhaustion, bypass, isolation,
 expiry/restart, changed-input and packet-budget tests. Reuse existing APIs, not
 a second ranker, contradiction engine, evidence store or approval mechanism.
 
-This change records only the proposal and index. It runs no model experiment
-and establishes no answer-quality gain. Check documentation links, numbering,
-status and diffs now; behaviour tests apply when executable guidance or code changes.
+The original ADR recorded a proposal, not an answer-quality gain. The limited
+implementation above does not establish that gain either. Keep behaviour tests,
+documentation links and implementation status aligned without treating engineering
+regressions as semantic validation.
 
 ## Consequences and rejection conditions
 

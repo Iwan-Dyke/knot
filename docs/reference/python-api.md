@@ -3,6 +3,10 @@
 Run these examples from the checkout with `PYTHONPATH=src .venv/bin/python`.
 Replace `ENTITY_IRI` with a resolved entity from your own dataset.
 
+For an opt-in model-independent MCP client loop, see the
+[investigation API and callback contract](../investigation.md). This is separate
+from the dataset APIs below and retains exploratory, unapproved answer status.
+
 Core APIs take an explicit dataset path. Use the shared resolver when you want the
 same selection as the CLI, or pass `Path('/path/to/dataset')` yourself:
 

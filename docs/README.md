@@ -20,6 +20,7 @@ unimplemented release work is listed separately in [release preparation](release
 | [Organisation](organisation.md) | Add/import knowledge themes, type suggestions and separate theme review |
 | [Datasets](datasets.md) | Folder selection, authoritative files, backups, import and Git limitations |
 | [MCP](mcp.md) | Local client setup, scoped reads and optional owner authoring |
+| [Opt-in investigation](investigation.md) | Python MCP client budgets, cached-evidence finalisation and host responsibilities |
 
 ## Reference and development
 

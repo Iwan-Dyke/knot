@@ -153,3 +153,9 @@ an agent loop inside KNOT. The trade-off is that hosts/models must apply the gui
 the stateless server still enforces only individual-call bounds and access controls.
 Protocol and synthetic continuity tests verify delivery and intact evidence, not
 model compliance. No new tool, retrieval algorithm, data change or review action.
+
+The [limited ADR 0060 implementation](0060-evidence-grounded-research-and-synthesis.md#limited-production-implementation)
+subsequently adds an opt-in client coordinator, separate from this stateless
+retrieval service. It closes retrieval at a budget rejection while retaining one
+bounded synthesis opportunity from cached evidence. Other MCP clients still
+manage cumulative limits themselves; no answer-quality guarantee follows.

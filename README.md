@@ -214,6 +214,7 @@ Start with the [documentation index](docs/README.md).
 | Evaluate reviewed framework mappings or revalidate saved receipts | [Coverage pilot](docs/evaluation.md) |
 | Review and reuse source-backed decision explanations | [Decision explanations](docs/explanations.md) |
 | Connect an AI client | [MCP](docs/mcp.md) |
+| Enable bounded exploratory research in a Python MCP host | [Opt-in investigation](docs/investigation.md) |
 | Browse the Library and explore the graph | [Viewer](docs/viewer.md) |
 | Review claims and identities | [Reviews](docs/reviews.md) |
 | Choose a dataset, back up or import sources | [Datasets](docs/datasets.md) |

@@ -60,6 +60,15 @@ The note CLI dispatches parsed commands to functions. The guided workflow uses a
 small editor table while keeping publication, confirmation and recovery together.
 Optional command modules remain lazily loaded.
 
+`interfaces/investigation.py` is an opt-in client coordinator around an existing
+MCP connection and a host-supplied async model callback. Its single-use in-memory
+state separates research open, research closed, finalisation and complete. It
+checks cumulative read budgets before dispatch and preserves complete MCP replies
+for one final synthesis decision within the original execution limits. The MCP
+server remains stateless; other hosts and direct calls bypass this coordinator.
+Source verification stays with existing tools, and generated answers remain
+unverified exploratory output. See [usage and enforcement boundaries](investigation.md).
+
 `diagnostics/quality.py` runs ordered graph, note, evidence, semantic, association
 and naming passes. `retrieval_engine/search.py` separates text revision selection,
 verification, section extraction and scoring. Private dataclasses carry the shared

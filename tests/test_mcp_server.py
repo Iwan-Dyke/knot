@@ -121,6 +121,10 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
                         'each selected source unit, revision or note',
                         'two sources in one call count as two',
                         'Stop when sufficient evidence exists',
+                        'A research limit ends retrieval',
+                        'No further retrieval is permitted after research closes',
+                        'opt-in Python client coordinator',
+                        'not a STRIDE-approved or semantically verified answer',
                         'Do not widen access',
                     ):
                         self.assertIn(required, guidance)

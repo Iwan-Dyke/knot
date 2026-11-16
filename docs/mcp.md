@@ -231,7 +231,16 @@ two graph calls and 600 seconds. Count each selected source unit, revision or no
 on every expansion, including repeat reads; selecting two in one call uses two
 expansions. These are **client-managed defaults**, not new server settings or
 cross-call enforcement. Existing response ceilings, traversal limits and access
-checks still apply. A client must stop at a limit rather than silently reset it.
+checks still apply. A client must stop retrieving at a research limit rather than
+silently reset it. Within the original overall limits, it should retain an
+opportunity to synthesise from cached evidence, including a qualified partial
+answer or abstention. No retrieval is permitted after research closes.
+
+Python hosts can opt into the [budget-aware investigation coordinator](investigation.md)
+with an existing `mcp.Client` and their own async model callback. It enforces
+cumulative limits and the finalisation transition for its own dispatch path;
+the server remains stateless. Other MCP hosts manage their own lifecycle. No new
+tool, default coordinator, model provider or semantic verification gate is enabled.
 
 The transport tests verify clients receive the guidance, including the safeguard
 against inferring changed coaching from an earlier concern and a later success.

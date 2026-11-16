@@ -124,6 +124,13 @@ def create_server(
             'server bounds individual calls. Stop when sufficient evidence exists, further '
             'searching is unlikely to change the answer, or a limit is reached. State unresolved '
             'gaps; do not silently reset limits. Do not widen access or bypass denied requests. '
+            'A research limit ends retrieval, not the opportunity to answer from cached evidence. '
+            'Within the original overall limits, reserve one bounded final synthesis opportunity; '
+            'use only evidence already returned, disclose unanswered parts, and allow a qualified '
+            'partial answer or abstention. No further retrieval is permitted after research closes. '
+            'The opt-in Python client coordinator knot.interfaces.investigation.Investigation '
+            'enforces this for calls routed through it; other clients manage their own lifecycle. '
+            'Final synthesis is exploratory, not a STRIDE-approved or semantically verified answer. '
             'Require explicit source support before attributing motivations, beliefs or reasoning '
             'to the owner. Distinguish documented statements, source-backed interpretations and '
             "your own hypotheses; never present unsupported inference as the owner's knowledge. "
