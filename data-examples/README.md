@@ -64,6 +64,8 @@ Generated datasets and HTML belong outside this directory. Tests always generate
 their own temporary copy.
 
 For an explicitly generated dataset, run `just quality --data-root /tmp/knot-example-data`.
-Source integrity checks pass. The current type audit reports five editorial
-`untyped_endpoint` notices because it misses types held in native declarations;
-the viewer does read those declarations. These notices remain a diagnostics limitation.
+The quality audit includes entity types declared in **current native notes**, even
+when they have no corresponding raw TriG type assertion. It does not treat retired
+declarations from historical revisions as current types. Any remaining
+`untyped_endpoint` warning needs investigation rather than an automatic merge
+or inferred type. Source integrity errors remain separate from editorial warnings.
