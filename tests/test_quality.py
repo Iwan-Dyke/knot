@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from uuid import uuid4
 from unittest.mock import patch
 
 from knot.inventory import digest
@@ -137,6 +138,65 @@ class QualityTests(unittest.TestCase):
         self.assertIn('conversational_note', self.codes(result, 'warnings'))
         self.assertIn('missing_derivation', self.codes(result, 'warnings'))
         self.assertEqual(self.files(), before)
+
+    def test_curated_note_that_mentions_an_instruction_is_not_a_source_capture(self):
+        original = create_note(self.root, 'Original reference note.')
+        curated = create_note(
+            self.root,
+            'The decision considered whether to add a separate notes database.',
+            title='Architecture interpretation',
+            author='ChatGPT',
+            derivation={
+                'method': 'synthesis',
+                'qualification': 'Architecture discussion, not a user instruction to act.',
+                'sources': [source_pin(self.root, original['revision'], original['body'], 0)],
+            },
+        )
+        before = self.files()
+        result = audit(self.root)
+        self.assertEqual(result['errors'], [])
+        self.assertNotIn(
+            curated['note'],
+            {w['record'] for w in result['warnings'] if w['code'] == 'conversational_note'},
+        )
+        self.assertEqual(result['counts']['conversational_source_captures'], 0)
+        self.assertEqual(self.files(), before)
+
+    def test_current_native_declaration_types_a_raw_assertion_endpoint(self):
+        self.claim(subject_type='Entity')
+        entity = 'urn:knot:entity:' + str(uuid4())
+        path = self.root / 'graph/claims.trig'
+        graph_text = path.read_text()
+        self.assertIn('<urn:a>', graph_text)
+        path.write_text(graph_text.replace('<urn:a>', '<' + entity + '>'))
+        note_body = 'Engineering thinking is a proposed team capability.'
+        navigation = {
+            'themes': [],
+            'links': [],
+            'declarations': [{
+                'id': entity, 'label': 'Engineering thinking', 'type': 'Concept',
+                'quote': 'Engineering thinking', 'offset': 0,
+            }],
+        }
+        note = create_note(self.root, note_body, author='Owner', navigation=navigation)
+        baseline = self.files()
+        result = audit(self.root)
+        self.assertEqual(result['errors'], [])
+        self.assertNotIn(
+            entity,
+            {w['record'] for w in result['warnings'] if w['code'] == 'untyped_endpoint'},
+        )
+        self.assertEqual(self.files(), baseline)
+        save_note(
+            self.root, note['note'], note_body, expected=note['revision'],
+            navigation={'themes': [], 'links': [], 'declarations': []},
+        )
+        after = audit(self.root)
+        self.assertEqual(after['errors'], [])
+        self.assertIn(
+            entity,
+            {w['record'] for w in after['warnings'] if w['code'] == 'untyped_endpoint'},
+        )
 
     def test_broken_hash_quote_and_missing_source_are_errors(self):
         self.claim(quote='A chose C.')
