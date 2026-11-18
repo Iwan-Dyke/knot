@@ -212,6 +212,7 @@ class _GraphAudit:
 class _NoteAudit:
     revisions: dict
     bodies: dict
+    current: list
 
 
 @dataclass(frozen=True)
@@ -415,7 +416,9 @@ def _audit_notes(root, graph, counts, report):
                 except READ_ERRORS as error:
                     report('errors', 'invalid_derivation', revision, error)
         current = history[-1]
-        if CONVERSATIONAL.search(current['body']):
+        # A source capture may contain an instruction; a curated note quoting
+        # that instruction is not itself an uncurated conversational capture.
+        if not current.get('derivation') and CONVERSATIONAL.search(current['body']):
             conversational.append(current)
         if not current.get('derivation') and (current['author'] or '').casefold() in AI_AUTHORS:
             report(
@@ -461,7 +464,7 @@ def _audit_notes(root, graph, counts, report):
             'source body; preserve the source and consider a curated note',
         )
 
-    return _NoteAudit(revisions, bodies)
+    return _NoteAudit(revisions, bodies, current_notes)
 
 
 def _audit_native_sources(root, store, revisions, report):
@@ -698,9 +701,17 @@ def _audit_associations(graph, notes, names, report):
                 )
 
 
-def _audit_names(graph, names, counts, report):
+def _audit_names(graph, notes, names, counts, report):
     bindings, canonical_labels = names.bindings, names.labels
     canonical_types, current_labels = names.types, names.current
+    # The raw TriG audit deliberately excludes the disposable native-note
+    # projection. Current, verified note declarations are nevertheless valid
+    # entity types for diagnostics. Do not use historical/withdrawn declarations
+    # or invent an RDF assertion or identity binding to fill the gap.
+    for saved in notes.current:
+        for declared in (saved.get('navigation') or {}).get('declarations', []):
+            entity = bindings.get(declared['id'], declared['id'])
+            canonical_types[entity].add(VOCAB + declared['type'])
     endpoints, literal_counts = graph.endpoints, graph.literal_counts
     collisions = defaultdict(set)
     for entity, names in sorted(canonical_labels.items()):
@@ -836,7 +847,7 @@ def audit(root):
     quotes = _audit_evidence(root, graph, notes, counts, report)
     names = _audit_semantics(root, graph, quotes, counts, report)
     _audit_associations(graph, notes, names, report)
-    _audit_names(graph, names, counts, report)
+    _audit_names(graph, notes, names, counts, report)
     counts['errors'] = len(result['errors'])
     counts['warnings'] = len(result['warnings'])
     counts['warning_codes'] = dict(sorted(Counter(w['code'] for w in result['warnings']).items()))
