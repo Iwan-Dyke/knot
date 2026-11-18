@@ -162,6 +162,35 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(result['counts']['conversational_source_captures'], 0)
         self.assertEqual(self.files(), before)
 
+    def test_explicit_navigation_index_is_not_unsourced_ai_synthesis(self):
+        source = create_note(self.root, '# Grounded topic\n\nSource evidence.')
+        navigation = {
+            'themes': [],
+            'links': [{'note': source['note'], 'reason': 'Topic source'}],
+            'declarations': [],
+        }
+        index = create_note(
+            self.root, '# Browse topics\n\n- Grounded topic',
+            title='Source navigation',
+            author='ChatGPT',
+            reason='Navigation for reviewed sources',
+            navigation=navigation,
+        )
+        unrelated = create_note(
+            self.root, 'An unsupported interpretation.',
+            title='Interpretation',
+            author='ChatGPT',
+            reason='Navigation for reviewed sources',
+        )
+        before = self.files()
+        result = audit(self.root)
+        self.assertEqual(result['errors'], [])
+        warnings = {w['record'] for w in result['warnings']
+                    if w['code'] == 'missing_derivation'}
+        self.assertNotIn(index['note'], warnings)
+        self.assertIn(unrelated['note'], warnings)
+        self.assertEqual(self.files(), before)
+
     def test_current_native_declaration_types_a_raw_assertion_endpoint(self):
         self.claim(subject_type='Entity')
         entity = 'urn:knot:entity:' + str(uuid4())
