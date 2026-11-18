@@ -40,6 +40,23 @@ CONVERSATIONAL = re.compile(
     r'separate (?:notes|entities)|separte (?:notes|entities))\b',
     re.IGNORECASE,
 )
+def _navigation_index_source(saved):
+    """Only explicitly identified link indexes are exempt from curation warnings.
+
+    Their content is a browsing aid, not an independently accepted claim.
+    This does not add provenance or make a source note into a curated note.
+    An AI-written summary without these structural signals is still warned.
+    """
+    navigation = saved.get('navigation') or {}
+    return (
+        (saved.get('reason') or '').casefold().startswith('navigation for ')
+        and saved.get('kind') in (None, 'Unspecified')
+        and not saved.get('entities')
+        and bool(navigation.get('links'))
+        and not navigation.get('declarations')
+    )
+
+
 READ_ERRORS = (ValueError, OSError, SyntaxError, TypeError, KeyError)
 REPORT_VERSION = 1
 RULESET_VERSION = 'continuous-curation-v1'
@@ -420,7 +437,11 @@ def _audit_notes(root, graph, counts, report):
         # that instruction is not itself an uncurated conversational capture.
         if not current.get('derivation') and CONVERSATIONAL.search(current['body']):
             conversational.append(current)
-        if not current.get('derivation') and (current['author'] or '').casefold() in AI_AUTHORS:
+        if (
+            not current.get('derivation')
+            and (current['author'] or '').casefold() in AI_AUTHORS
+            and not _navigation_index_source(current)
+        ):
             report(
                 'warnings',
                 'missing_derivation',
